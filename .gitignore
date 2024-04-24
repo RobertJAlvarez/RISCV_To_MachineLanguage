@@ -1,3 +1,8 @@
+# Temporary tester folders
+org_output
+new_output
+gen.sh
+
 # Prerequisites
 *.d
 
