@@ -9,16 +9,17 @@
 #define START 268435456
 #define DATA_MEMO_SIZE (4000)
 #define ARCH_SIZE (32)
+#define MC_FILE ("MCode.mc")
 
-std::vector<std::string> codeinit;
-std::vector<std::string> code;
-std::vector<std::string> Format;
+static std::vector<std::string> codeinit;
+static std::vector<std::string> code;
+static std::vector<std::string> Format;
 
 // Initial Size of Data Memory
 std::string datamemory[DATA_MEMO_SIZE];
 
-ll_t pccount = 0;
-size_t sizeI, size;
+ll_t pc = 0;
+size_t size;
 int binary[ARCH_SIZE];
 
 typedef struct {
@@ -87,8 +88,11 @@ std::string convert(const std::string s, const int len) {
     int last = 0;
     int is_neg = 0;
 
-    if (s[0] == '-') is_neg = 1;
-    if (is_neg) last = 1;
+    if (s[0] == '-') {
+      is_neg = 1;
+      last = 1;
+    }
+
     for (int i = length - 1; i >= last; i--) {
       num += (s[i] - '0') * mul;
       mul *= 10;
@@ -213,7 +217,6 @@ void formats(const std::string filename) {
 
   while (getline(myFile, line)) Format.push_back(line);
 
-  sizeI = Format.size();
   myFile.close();
 }
 
@@ -257,10 +260,10 @@ ll_t gethex(std::vector<int> temp) {
 
 void hexa(void) {
   std::ofstream file;
-  file.open("MCode.mc", std::ios_base::app);
+  file.open(MC_FILE, std::ios_base::app);
   file << "0x";
   std::string s;
-  ll_t temppc = pccount;
+  ll_t temppc = pc;
 
   if (temppc == 0) s += '0';
 
@@ -283,23 +286,10 @@ void hexa(void) {
   }
 
   file << '\n';
-  pccount += 4;
+  pc += 4;
 }
 
-// To get all_t the Labels used in Code
-int getlab(const std::string label, const int ind) {
-  int sizelabel = Label.size();
-
-  for (int i = 0; i < sizelabel; i++) {
-    if (label.compare(Label[i].s) == 0) {
-      return (Label[i].index - ind) * 2;
-    }
-  }
-
-  return -1;
-}
-
-static int get_reg_num(const std::string &line, int i, ll_t &reg) {
+static void __get_reg_num(const std::string &line, size_t &i, ll_t &reg) {
   std::vector<int> temp;
 
   while (line[i] != 'x') i++;
@@ -310,16 +300,14 @@ static int get_reg_num(const std::string &line, int i, ll_t &reg) {
   }
   reg = getnum(temp, 10);
   temp.clear();
-
-  return i;
 }
 
-static void get_dst_src(const int index, ll_t &r1, ll_t &imm, ll_t &r2) {
+static void __get_dst_src(const std::string &line, ll_t &r1, ll_t &imm,
+                          ll_t &r2) {
   std::vector<int> temp;
-  const std::string &line = code[index];
   size_t i = 0;
 
-  i = get_reg_num(line, 0, r1);
+  __get_reg_num(line, i, r1);
 
   while (!isdigit(line[i])) i++;
 
@@ -347,7 +335,31 @@ static void get_dst_src(const int index, ll_t &r1, ll_t &imm, ll_t &r2) {
   temp.clear();
 }
 
-void IFunction(const int index, const int index1) {
+static void __get_last_num(const std::string &line, size_t i, ll_t &imm) {
+  std::vector<int> temp;
+  int flag = 0;
+  int is_neg = 0;
+
+  while (line[i] == ' ' || line[i] == ',') i++;
+
+  if (line[i] == '-') {
+    is_neg = 1;
+    i++;
+  }
+
+  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+    temp.push_back(line[i] - '0');
+    if (line[i] == 'x') flag = 1;
+    i++;
+  }
+
+  imm = (flag == 0 ? getnum(temp, 10) : gethex(temp));
+  if (is_neg) imm = getinver(imm, 12);
+
+  temp.clear();
+}
+
+void IFunction(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   ll_t rd, rs1, imme;
@@ -365,74 +377,34 @@ void IFunction(const int index, const int index1) {
 
   if (!open_bracket) {
     i = 1;
-    while (line[i] != 'x') i++;
-
-    i++;
-    while (line[i] != ' ' && line[i] != ',') {
-      temp.push_back(line[i] - '0');
-      i++;
-    }
-    rd = getnum(temp, 10);
-    temp.clear();
-
-    while (line[i] != 'x') i++;
-
-    i++;
-    while (line[i] != ' ' && line[i] != ',') {
-      temp.push_back(line[i] - '0');
-      i++;
-    }
-
-    rs1 = getnum(temp, 10);
-    temp.clear();
-
-    while (line[i] == ' ' || line[i] == ',') i++;
-
-    int is_neg = 0;
-    if (line[i] == '-') {
-      is_neg = 1;
-      i++;
-    }
-
-    int flag = 0;
-    while (i < line.size() && line[i] != ' ' && line[i] != '#' &&
-           line[i] != ',') {
-      temp.push_back(line[i] - '0');
-      if (line[i] == 'x') flag = 1;
-      i++;
-    }
-
-    imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-    temp.clear();
-    if (is_neg) imme = getinver(imme, 12);
+    __get_reg_num(line, i, rd);
+    __get_reg_num(line, i, rs1);
+    __get_last_num(line, i, imme);
   } else {
-    get_dst_src(index, rd, imme, rs1);
+    __get_dst_src(line, rd, imme, rs1);
   }
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
+  while (format_line[i] != ' ') i++;
 
   i++;
   int j;
   for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
   i++;
 
-  j = 24;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rd % 2;
+  for (j = 24; j > 19; j--) {
+    binary[j] = rd % 2;
     rd /= 2;
   }
 
   for (j = 17; j <= 19; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
 
-  i++;
-  j = 16;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs1 % 2;
+  for (j = 16; j > 11; j--) {
+    binary[j] = rs1 % 2;
     rs1 /= 2;
   }
 
@@ -444,35 +416,35 @@ void IFunction(const int index, const int index1) {
   hexa();
 }
 
-void SFunction(const int index, const int index1) {
+void SFunction(const int index, const std::string &format_line) {
   ll_t rs1, rs2, imme;
   size_t i;
   std::vector<int> temp;
 
-  get_dst_src(index, rs2, imme, rs1);
+  __get_dst_src(code[index], rs2, imme, rs1);
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
+  while (format_line[i] != ' ') i++;
 
   i++;
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = format_line[i++] - '0';
+  }
   i++;
 
-  j = 24;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = imme % 2;
+  for (j = 24; j > 19; j--) {
+    binary[j] = imme % 2;
     imme /= 2;
   }
 
   for (j = 17; j <= 19; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
   i++;
 
-  j = 16;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs1 % 2;
+  for (j = 16; j > 11; j--) {
+    binary[j] = rs1 % 2;
     rs1 /= 2;
   }
 
@@ -489,39 +461,20 @@ void SFunction(const int index, const int index1) {
   hexa();
 }
 
-void RFunction(const int index, const int index1) {
+void RFunction(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   ll_t rd, rs1, rs2;
-  size_t i = 0;
+  size_t i;
 
-  i++;  // To get rid of x from xor instruction
-  while (line[i] != 'x') i++;
-
-  i++;
-
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rd = getnum(temp, 10);
-  temp.clear();
+  // Start at 1 to get rid of x from xor instruction
+  i = 1;
+  __get_reg_num(line, i, rd);
+  __get_reg_num(line, i, rs1);
 
   while (line[i] != 'x') i++;
-
   i++;
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rs1 = getnum(temp, 10);
-  temp.clear();
-
-  while (line[i] != 'x') i++;
-
-  i++;
-  while (i < line.size() && line[i] != ' ' && line[i] != '#' &&
-         line[i] != ',') {
+  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
     temp.push_back(line[i] - '0');
     i++;
   }
@@ -529,27 +482,27 @@ void RFunction(const int index, const int index1) {
   temp.clear();
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
+  while (format_line[i] != ' ') i++;
   i++;
 
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = format_line[i++] - '0';
+  }
   i++;
 
-  j = 24;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rd % 2;
+  for (j = 24; j > 19; j--) {
+    binary[j] = rd % 2;
     rd /= 2;
   }
 
   for (j = 17; j <= 19; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
   i++;
 
-  j = 16;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs1 % 2;
+  for (j = 16; j > 11; j--) {
+    binary[j] = rs1 % 2;
     rs1 /= 2;
   }
 
@@ -559,55 +512,59 @@ void RFunction(const int index, const int index1) {
   }
 
   for (j = 0; j <= 6; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
 
   hexa();
 }
 
-void UJFunction(const int index, const int index1) {
+// To get all_t the Labels used in Code
+static int __get_label(const std::string label, const int ind) {
+  int sizelabel = Label.size();
+
+  for (int i = 0; i < sizelabel; i++) {
+    if (label.compare(Label[i].s) == 0) {
+      return (Label[i].index - ind) * 2;
+    }
+  }
+
+  return -1;
+}
+
+static void __get_label_imm(const int index, size_t &i, ll_t &imme,
+                            const int n_bits) {
   const std::string &line = code[index];
   std::string label;
-  ll_t rd, imme;
-  size_t i = 0;
 
-  while (line[i] != 'x') {
-    i++;
-  }
-  i++;
-
-  std::vector<int> temp;
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rd = getnum(temp, 10);
-  temp.clear();
-
-  while (line[i] == ' ' || line[i] == ',') {
-    i++;
-  }
+  while (line[i] == ' ' || line[i] == ',') i++;
 
   while (i < line.size() && line[i] != ' ' && line[i] != '#') {
     label += line[i];
     i++;
   }
-  imme = getlab(label, index);
-  if (imme < 0) imme = getinver(imme, 20);
+  imme = __get_label(label, index);
+  if (imme < 0) imme = getinver(imme, n_bits);
+}
+
+void UJFunction(const int index, const std::string &format_line) {
+  const std::string &line = code[index];
+  std::vector<int> temp;
+  ll_t rd, imme;
+  size_t i, j;
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
-  i++;
+  __get_reg_num(line, i, rd);
+  __get_label_imm(index, i, imme, 20);
 
-  int j;
+  i = 0;
+  while (format_line[i] != ' ') i++;
+
   for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[++i] - '0';
   }
-  i++;
 
-  j = 24;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rd % 2;
+  for (j = 24; j > 19; j--) {
+    binary[j] = rd % 2;
     rd /= 2;
   }
 
@@ -628,31 +585,20 @@ void UJFunction(const int index, const int index1) {
       imme /= 2;
     }
   }
+
   hexa();
 }
 
-void UFunction(const int index, const int index1) {
+void UFunction(const int index, const std::string &format_line) {
   const std::string &line = code[index];
+  std::vector<int> temp;
   std::string label;
   ll_t rd, imme;
   size_t i = 0;
 
-  while (line[i] != 'x') {
-    i++;
-  }
-  i++;
+  __get_reg_num(line, i, rd);
 
-  std::vector<int> temp;
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rd = getnum(temp, 10);
-  temp.clear();
-
-  while (line[i] == ' ' || line[i] == ',') {
-    i++;
-  }
+  while (line[i] == ' ' || line[i] == ',') i++;
 
   int flag = 0;
   int is_neg = 0;
@@ -669,94 +615,59 @@ void UFunction(const int index, const int index1) {
   }
 
   imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-
+  temp.clear();
   if (is_neg) imme = getinver(imme, 20);
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
+  while (format_line[i] != ' ') i++;
   i++;
 
   int j;
   for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
   i++;
 
-  j = 24;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rd % 2;
+  for (j = 24; j > 19; j--) {
+    binary[j] = rd % 2;
     rd /= 2;
   }
 
-  j = 19;
-  for (int k = 0; k < 20; k++) {
-    binary[j--] = imme % 2;
+  for (j = 19; j >= 0; j--) {
+    binary[j] = imme % 2;
     imme /= 2;
   }
   hexa();
 }
 
-void SBFunction(const int index, const int index1) {
+void SBFunction(const int index, const std::string &format_line) {
   const std::string &line = code[index];
+  std::vector<int> temp;
   std::string label;
   ll_t rs1, rs2, imme;
-  size_t i = 0;
-
-  while (line[i] != 'x') {
-    i++;
-  }
-  i++;
-
-  std::vector<int> temp;
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rs1 = getnum(temp, 10);
-  temp.clear();
-
-  while (line[i] != 'x') {
-    i++;
-  }
-  i++;
-
-  while (line[i] != ' ' && line[i] != ',') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rs2 = getnum(temp, 10);
-  temp.clear();
-
-  while (line[i] == ' ' || line[i] == ',') {
-    i++;
-  }
-
-  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
-    label += line[i];
-    i++;
-  }
-  imme = getlab(label, index);
-
-  if (imme < 0) imme = getinver(imme, 12);
+  size_t i, j;
 
   i = 0;
-  while (Format[index1][i] != ' ') i++;
+  __get_reg_num(line, i, rs1);
+  __get_reg_num(line, i, rs2);
+  __get_label_imm(index, i, imme, 12);
+
+  i = 0;
+  while (format_line[i] != ' ') i++;
   i++;
 
-  int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
-
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = format_line[i++] - '0';
+  }
   i++;
   for (j = 17; j <= 19; j++) {
-    binary[j] = Format[index1][i++] - '0';
+    binary[j] = format_line[i++] - '0';
   }
 
-  j = 16;
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs1 % 2;
+  for (j = 16; j > 11; j--) {
+    binary[j] = rs1 % 2;
     rs1 /= 2;
   }
-
   for (int k = 0; k < 5; k++) {
     binary[j--] = rs2 % 2;
     rs2 /= 2;
@@ -782,13 +693,14 @@ void SBFunction(const int index, const int index1) {
   hexa();
 }
 
-void typenumber(const std::string ins, const int index, const int index1) {
-  if (ins == "I") IFunction(index, index1);
-  if (ins == "R") RFunction(index, index1);
-  if (ins == "S") SFunction(index, index1);
-  if (ins == "UJ") UJFunction(index, index1);
-  if (ins == "U") UFunction(index, index1);
-  if (ins == "SB") SBFunction(index, index1);
+void typenumber(const std::string ins, const int index,
+                const std::string &format_line) {
+  if (ins == "I") IFunction(index, format_line);
+  if (ins == "R") RFunction(index, format_line);
+  if (ins == "S") SFunction(index, format_line);
+  if (ins == "UJ") UJFunction(index, format_line);
+  if (ins == "U") UFunction(index, format_line);
+  if (ins == "SB") SBFunction(index, format_line);
 }
 
 // To extract instruction type and process them independently
@@ -811,22 +723,26 @@ void process(void) {
       while (j < line.size() && line[j] != ' ') ins += line[j++];
     }
 
-    for (size_t k = 0; k < sizeI; k++) {
+    const size_t n_instructions = Format.size();
+    for (size_t k = 0; k < n_instructions; k++) {
       std::string type;
+      const std::string &format_line = Format[k];
       int k1 = 0;
-      while (Format[k][k1] != ' ') {
-        type += (Format[k][k1]);
+
+      while (format_line[k1] != ' ') {
+        type += format_line[k1];
         k1++;
       }
+
       if (ins.compare(type) == 0) {
-        k1 = Format[k].size() - 1;
+        k1 = format_line.size() - 1;
         std::string type1;
-        while (Format[k][k1] != ' ') {
-          type1 += (Format[k][k1]);
+        while (format_line[k1] != ' ') {
+          type1 += (format_line[k1]);
           k1--;
         }
         reverse(type1.begin(), type1.end());
-        typenumber(type1, i, k);
+        typenumber(type1, i, Format[k]);
         break;
       }
     }
@@ -866,25 +782,24 @@ void preprocess(void) {
 
 // To process Load Address(la) psudo command
 void processla(const int index) {
+  const std::string &line = codeinit[index];
+  std::string s, labeltype, labeladd;
+  ll_t currentpc, labeladdress;
   size_t i = 0;
-  std::string s;
 
-  while (codeinit[index][i] != 'x') i++;
-
+  while (line[i] != 'x') i++;
   i++;
-  while (codeinit[index][i] != ' ') s += codeinit[index][i++];
+  while (line[i] != ' ') s += line[i++];
 
   code.push_back("auipc x" + s + " 65536");
-  int currentpc = code.size() * 4 - 4;
-  currentpc += START;
+  currentpc = (code.size() * 4 - 4) + START;
 
-  while (codeinit[index][i] == ' ') i++;
+  while (line[i] == ' ') i++;
 
-  std::string labeltype;
-  while (i < codeinit[index].size() && codeinit[index][i] != ' ') {
-    labeltype += codeinit[index][i++];
+  while (i < line.size() && line[i] != ' ') {
+    labeltype += line[i++];
   }
-  ll_t labeladdress = 0;
+  labeladdress = 0;
 
   for (size_t j = 0; j < datalabel.size(); j++) {
     if (labeltype.compare(datalabel[j].name) == 0) {
@@ -893,9 +808,7 @@ void processla(const int index) {
     }
   }
 
-  labeladdress = labeladdress - currentpc;
-  std::string labeladd;
-  ll_t temp1 = abs(labeladdress);
+  ll_t temp1 = abs(labeladdress - currentpc);
 
   while (temp1 != 0) {
     labeladd += (temp1 % 10) + '0';
@@ -910,17 +823,16 @@ void processla(const int index) {
 
 // To process Load Word (lw) psudo command
 void processlw(const std::string type, const int index, const ll_t pos) {
+  const std::string &line = codeinit[index];
   std::string s, ins, labeladd;
-  ll_t currentpc = code.size() * 4 + START;
+  ll_t currentpc;
   int i = 0;
 
-  while (codeinit[index][i] != 'x') i++;
-
+  while (line[i] != 'x') i++;
   i++;
+  while (line[i] != ' ') s += line[i++];
 
-  while (codeinit[index][i] != ' ') s += codeinit[index][i++];
-
-  currentpc = pos - currentpc;
+  currentpc = pos - (code.size() * 4 + START);
   code.push_back("auipc x" + s + " 65536");
   ll_t temp1 = abs(currentpc);
 
@@ -936,43 +848,43 @@ void processlw(const std::string type, const int index, const ll_t pos) {
 
 // To expand all psudo instruction if present
 void shift(void) {
-  int siz = codeinit.size();
+  int n_code_lines = codeinit.size();
 
   std::cout << '\n';
 
-  for (int i = 0; i < siz; i++) {
+  for (int i = 0; i < n_code_lines; i++) {
     size_t j;
-    // std::cout << std::to_string(i) << ": " << codeinit[i] << '\n';
-    for (j = 0; j < codeinit[i].size(); j++) {
-      if (codeinit[i][j] == '\t') codeinit[i][j] = ' ';
+    std::string &line = codeinit[i];
+    for (j = 0; j < line.size(); j++) {
+      if (line[j] == '\t') line[j] = ' ';
     }
 
     std::string ins;
     j = 0;
     int start = -1;
 
-    while (j < codeinit[i].size() && codeinit[i][j] == ' ') j++;
+    while (j < line.size() && line[j] == ' ') j++;
 
     start = j;
-    while (j < codeinit[i].size() && codeinit[i][j] != ' ') {
-      ins += codeinit[i][j];
+    while (j < line.size() && line[j] != ' ') {
+      ins += line[j];
       j++;
-      if (j < codeinit[i].size() && codeinit[i][j] == ':') {
-        ins += codeinit[i][j];
+      if (j < line.size() && line[j] == ':') {
+        ins += line[j];
         j++;
         break;
       }
     }
 
-    while (j < codeinit[i].size() && codeinit[i][j] == ' ') j++;
+    while (j < line.size() && line[j] == ' ') j++;
 
     size_t sins = ins.size();
 
-    if (ins[sins - 1] == ':' && codeinit[i].size() > sins) {
+    if (ins[sins - 1] == ':' && line.size() > sins) {
       ins.clear();
-      while (j < codeinit[i].size() && codeinit[i][j] == ' ') j++;
+      while (j < line.size() && line[j] == ' ') j++;
       start = j;
-      while (codeinit[i][j] != ' ') ins += codeinit[i][j++];
+      while (line[j] != ' ') ins += line[j++];
     }
 
     if (ins == "la") {
@@ -980,12 +892,12 @@ void shift(void) {
       continue;
     } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
       std::string lab;
-      j = codeinit[i].size() - 1;
+      j = line.size() - 1;
 
-      while (codeinit[i][j] == ' ') j--;
+      while (line[j] == ' ') j--;
 
-      while (codeinit[i][j] != ' ') {
-        lab += codeinit[i][j];
+      while (line[j] != ' ') {
+        lab += line[j];
         j--;
       }
 
@@ -1003,19 +915,20 @@ void shift(void) {
       if (!flag) continue;
     }
 
-    for (size_t k = 0; k < sizeI; k++) {
+    const size_t n_instructions = Format.size();
+    for (size_t k = 0; k < n_instructions; k++) {
+      const std::string &format_line = Format[k];
       std::string type;
       int k1 = 0;
 
-      while (Format[k][k1] != ' ') {
-        type += (Format[k][k1]);
+      while (format_line[k1] != ' ') {
+        type += format_line[k1];
         k1++;
       }
 
       if (ins.compare(type) == 0) {
         std::string add;
-        for (size_t l = start; l < codeinit[i].size(); l++)
-          add += codeinit[i][l];
+        for (size_t l = start; l < line.size(); l++) add += line[l];
 
         code.push_back(add);
         break;
@@ -1030,17 +943,18 @@ void setlabel(void) {
   int count = -1;
 
   for (size_t i = 0; i < siz; i++) {
+    const std::string &line = codeinit[i];
     std::string ins;
     size_t j;
 
-    for (j = 0; j < codeinit[i].size() && codeinit[i][j] == ' '; j++)
+    for (j = 0; j < line.size() && line[j] == ' '; j++)
       ;
 
-    while (j < codeinit[i].size() && codeinit[i][j] != ' ') {
-      ins += codeinit[i][j];
+    while (j < line.size() && line[j] != ' ') {
+      ins += line[j];
       j++;
-      if (j < codeinit[i].size() && codeinit[i][j] == ':') {
-        ins += codeinit[i][j];
+      if (j < line.size() && line[j] == ':') {
+        ins += line[j];
         j++;
         break;
       }
@@ -1056,12 +970,12 @@ void setlabel(void) {
       Label.push_back(temp);
     }
 
-    if (ins[sins - 1] == ':' && sins < codeinit[i].size()) {
-      while (j < codeinit[i].size() && codeinit[i][j] == ' ') j++;
+    if (ins[sins - 1] == ':' && sins < line.size()) {
+      while (j < line.size() && line[j] == ' ') j++;
 
       ins.clear();
-      while (j < codeinit[i].size() && codeinit[i][j] != ' ') {
-        ins += codeinit[i][j];
+      while (j < line.size() && line[j] != ' ') {
+        ins += line[j];
         j++;
       }
     }
@@ -1071,11 +985,11 @@ void setlabel(void) {
       continue;
     } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
       std::string lab;
-      j = codeinit[i].size() - 1;
-      while (codeinit[i][j] == ' ') j--;
+      j = line.size() - 1;
+      while (line[j] == ' ') j--;
 
-      while (codeinit[i][j] != ' ') {
-        lab += codeinit[i][j];
+      while (line[j] != ' ') {
+        lab += line[j];
         j--;
       }
       reverse(lab.begin(), lab.end());
@@ -1092,12 +1006,14 @@ void setlabel(void) {
       if (!flag) continue;
     }
 
-    for (size_t k = 0; k < sizeI; k++) {
+    const size_t n_instructions = Format.size();
+    for (size_t k = 0; k < n_instructions; k++) {
+      const std::string &format_line = Format[k];
       std::string type;
       int k1 = 0;
 
-      while (Format[k][k1] != ' ') {
-        type += (Format[k][k1]);
+      while (format_line[k1] != ' ') {
+        type += format_line[k1];
         k1++;
       }
 
@@ -1121,7 +1037,7 @@ int main(void) {
   for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
   read_data();
 
-  files.open("MCode.mc");
+  files.open(MC_FILE);
   files.close();
   formats("Format.txt");
 
@@ -1137,14 +1053,12 @@ int main(void) {
     if (flag != 1) codeinit.push_back(line);
   }
 
-  // std::cout << "1146\n";
   shift();
-  // std::cout << "11'0'\n";
   setlabel();
   preprocess();
   process();
   myFile.close();
-  file.open("MCode.mc", std::ios_base::app);
+  file.open(MC_FILE, std::ios_base::app);
 
   file << s << std::endl;
 
