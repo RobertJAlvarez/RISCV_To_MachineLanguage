@@ -85,16 +85,16 @@ std::string convert(const std::string s, const int len) {
   if (flag) {
     ll_t mul = 1;
     int last = 0;
-    int flag1 = 0;
+    int is_neg = 0;
 
-    if (s[0] == '-') flag1 = 1;
-    if (flag1) last = 1;
+    if (s[0] == '-') is_neg = 1;
+    if (is_neg) last = 1;
     for (int i = length - 1; i >= last; i--) {
       num += (s[i] - '0') * mul;
       mul *= 10;
     }
 
-    if (flag1) num = getinver(num, len * 4);
+    if (is_neg) num = getinver(num, len * 4);
   } else {
     ll_t x;
     std::stringstream ss;
@@ -299,104 +299,124 @@ int getlab(const std::string label, const int ind) {
   return -1;
 }
 
-void IFunction(const int index, const int index1) {
-  int size11 = code[index].size();
-  int open_bracket = 0;
+static int get_reg_num(const std::string &line, int i, ll_t &reg) {
+  std::vector<int> temp;
 
-  for (int i = 0; i < size11; i++) {
-    if (code[index][i] == '(') {
+  while (line[i] != 'x') i++;
+  i++;
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
+    i++;
+  }
+  reg = getnum(temp, 10);
+  temp.clear();
+
+  return i;
+}
+
+static void get_dst_src(const int index, ll_t &r1, ll_t &imm, ll_t &r2) {
+  std::vector<int> temp;
+  const std::string &line = code[index];
+  size_t i = 0;
+
+  i = get_reg_num(line, 0, r1);
+
+  while (!isdigit(line[i])) i++;
+
+  int is_neg = (i - 1 >= 0 && line[i - 1] == '-' ? 1 : 0);
+
+  int flag = 0;
+  while (line[i] != '(') {
+    temp.push_back(line[i] - '0');
+    if (line[i] == 'x') flag = 1;
+    i++;
+  }
+
+  imm = (flag == 0 ? getnum(temp, 10) : gethex(temp));
+  temp.clear();
+  if (is_neg) imm = getinver(imm, 12);
+
+  while (line[i] != 'x') i++;
+  i++;
+  while (i < line.size() && line[i] != ')') {
+    temp.push_back(line[i] - '0');
+    i++;
+  }
+
+  r2 = getnum(temp, 10);
+  temp.clear();
+}
+
+void IFunction(const int index, const int index1) {
+  const std::string &line = code[index];
+  std::vector<int> temp;
+  ll_t rd, rs1, imme;
+  size_t size11 = line.size();
+  int open_bracket = 0;
+  size_t i;
+
+  for (i = 0; i < size11; i++) {
+    if (line[i] == '(') {
       open_bracket = 1;
       break;
     }
-    if (code[index][i] == '#') {
-      break;
-    }
+    if (line[i] == '#') break;
   }
-
-  ll_t rd, rs1, imme;
-  size_t i = 0;
-  std::vector<int> temp;
 
   if (!open_bracket) {
+    i = 1;
+    while (line[i] != 'x') i++;
+
     i++;
-    while (code[index][i] != 'x') i++;
-
-    for (i++; code[index][i] != ' ' && code[index][i] != ','; i++)
-      temp.push_back(code[index][i] - '0');
-
+    while (line[i] != ' ' && line[i] != ',') {
+      temp.push_back(line[i] - '0');
+      i++;
+    }
     rd = getnum(temp, 10);
     temp.clear();
-    while (code[index][i] != 'x') i++;
 
-    for (i++; code[index][i] != ' ' && code[index][i] != ','; i++)
-      temp.push_back(code[index][i] - '0');
+    while (line[i] != 'x') i++;
+
+    i++;
+    while (line[i] != ' ' && line[i] != ',') {
+      temp.push_back(line[i] - '0');
+      i++;
+    }
 
     rs1 = getnum(temp, 10);
     temp.clear();
 
-    while (code[index][i] == ' ' || code[index][i] == ',') i++;
+    while (line[i] == ' ' || line[i] == ',') i++;
 
-    int flag1 = 0;
-    if (code[index][i] == '-') {
-      flag1 = 1;
+    int is_neg = 0;
+    if (line[i] == '-') {
+      is_neg = 1;
       i++;
     }
 
     int flag = 0;
-    while (i < code[index].size() && code[index][i] != ' ' &&
-           code[index][i] != '#' && code[index][i] != ',') {
-      temp.push_back(code[index][i] - '0');
-      if (code[index][i] == 'x') flag = 1;
+    while (i < line.size() && line[i] != ' ' && line[i] != '#' &&
+           line[i] != ',') {
+      temp.push_back(line[i] - '0');
+      if (line[i] == 'x') flag = 1;
       i++;
     }
 
     imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-
-    if (flag1) imme = getinver(imme, 12);
+    temp.clear();
+    if (is_neg) imme = getinver(imme, 12);
   } else {
-    while (code[index][i] != 'x') i++;
-
-    i++;
-    while (code[index][i] != ' ' && code[index][i] != ',') {
-      temp.push_back(code[index][i] - '0');
-      i++;
-    }
-
-    rd = getnum(temp, 10);
-    temp.clear();
-    while (!(code[index][i] >= '0' && code[index][i] <= '9')) i++;
-
-    int flag1 = 0;
-    if (code[index][i - 1] == '-') flag1 = 1;
-
-    int flag = 0;
-    while (code[index][i] != '(') {
-      temp.push_back(code[index][i] - '0');
-      if (code[index][i] == 'x') flag = 1;
-      i++;
-    }
-
-    imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-
-    temp.clear();
-    if (flag1) imme = getinver(imme, 12);
-    while (code[index][i] != 'x') i++;
-
-    i++;
-    while (i < code[index].size() && code[index][i] != ')') {
-      temp.push_back(code[index][i] - '0');
-      i++;
-    }
-    rs1 = getnum(temp, 10);
+    get_dst_src(index, rd, imme, rs1);
   }
 
-  temp.clear();
   i = 0;
   while (Format[index1][i] != ' ') i++;
 
   i++;
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
   i++;
 
   j = 24;
@@ -405,7 +425,9 @@ void IFunction(const int index, const int index1) {
     rd /= 2;
   }
 
-  for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - '0';
+  for (j = 17; j <= 19; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
 
   i++;
   j = 16;
@@ -424,44 +446,10 @@ void IFunction(const int index, const int index1) {
 
 void SFunction(const int index, const int index1) {
   ll_t rs1, rs2, imme;
-  size_t i = 0;
+  size_t i;
   std::vector<int> temp;
 
-  while (code[index][i] != 'x') i++;
-
-  i++;
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
-    i++;
-  }
-  rs2 = getnum(temp, 10);
-  temp.clear();
-
-  while (!(code[index][i] >= '0' && code[index][i] <= '9')) i++;
-
-  int flag1 = (i - 1 >= 0 && code[index][i - 1] == '-' ? 1 : 0);
-
-  int flag = 0;
-  while (code[index][i] != '(') {
-    temp.push_back(code[index][i] - '0');
-    if (code[index][i] == 'x') flag = 1;
-    i++;
-  }
-
-  imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-
-  if (flag1) imme = getinver(imme, 12);
-
-  temp.clear();
-  while (code[index][i] != 'x') i++;
-
-  i++;
-  while (i < code[index].size() && code[index][i] != ')') {
-    temp.push_back(code[index][i] - '0');
-    i++;
-  }
-  rs1 = getnum(temp, 10);
-  temp.clear();
+  get_dst_src(index, rs2, imme, rs1);
 
   i = 0;
   while (Format[index1][i] != ' ') i++;
@@ -502,38 +490,39 @@ void SFunction(const int index, const int index1) {
 }
 
 void RFunction(const int index, const int index1) {
+  const std::string &line = code[index];
+  std::vector<int> temp;
   ll_t rd, rs1, rs2;
   size_t i = 0;
-  std::vector<int> temp;
 
   i++;  // To get rid of x from xor instruction
-  while (code[index][i] != 'x') i++;
+  while (line[i] != 'x') i++;
 
   i++;
 
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] != 'x') i++;
+  while (line[i] != 'x') i++;
 
   i++;
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rs1 = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] != 'x') i++;
+  while (line[i] != 'x') i++;
 
   i++;
-  while (i < code[index].size() && code[index][i] != ' ' &&
-         code[index][i] != '#' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (i < line.size() && line[i] != ' ' && line[i] != '#' &&
+         line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rs2 = getnum(temp, 10);
@@ -577,30 +566,30 @@ void RFunction(const int index, const int index1) {
 }
 
 void UJFunction(const int index, const int index1) {
+  const std::string &line = code[index];
+  std::string label;
   ll_t rd, imme;
   size_t i = 0;
-  std::string label;
 
-  while (code[index][i] != 'x') {
+  while (line[i] != 'x') {
     i++;
   }
   i++;
 
   std::vector<int> temp;
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] == ' ' || code[index][i] == ',') {
+  while (line[i] == ' ' || line[i] == ',') {
     i++;
   }
 
-  while (i < code[index].size() && code[index][i] != ' ' &&
-         code[index][i] != '#') {
-    label += code[index][i];
+  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+    label += line[i];
     i++;
   }
   imme = getlab(label, index);
@@ -643,45 +632,45 @@ void UJFunction(const int index, const int index1) {
 }
 
 void UFunction(const int index, const int index1) {
+  const std::string &line = code[index];
+  std::string label;
   ll_t rd, imme;
   size_t i = 0;
-  std::string label;
 
-  while (code[index][i] != 'x') {
+  while (line[i] != 'x') {
     i++;
   }
   i++;
 
   std::vector<int> temp;
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] == ' ' || code[index][i] == ',') {
+  while (line[i] == ' ' || line[i] == ',') {
     i++;
   }
 
   int flag = 0;
-  int flag1 = 0;
+  int is_neg = 0;
 
-  if (code[index][i] == '-') {
-    flag1 = 1;
+  if (line[i] == '-') {
+    is_neg = 1;
     i++;
   }
 
-  while (i < code[index].size() && code[index][i] != ' ' &&
-         code[index][i] != '#') {
-    temp.push_back(code[index][i] - '0');
-    if (code[index][i] == 'x') flag = 1;
+  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+    temp.push_back(line[i] - '0');
+    if (line[i] == 'x') flag = 1;
     i++;
   }
 
   imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
 
-  if (flag1) imme = getinver(imme, 20);
+  if (is_neg) imme = getinver(imme, 20);
 
   i = 0;
   while (Format[index1][i] != ' ') i++;
@@ -708,42 +697,42 @@ void UFunction(const int index, const int index1) {
 }
 
 void SBFunction(const int index, const int index1) {
+  const std::string &line = code[index];
+  std::string label;
   ll_t rs1, rs2, imme;
   size_t i = 0;
-  std::string label;
 
-  while (code[index][i] != 'x') {
+  while (line[i] != 'x') {
     i++;
   }
   i++;
 
   std::vector<int> temp;
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rs1 = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] != 'x') {
+  while (line[i] != 'x') {
     i++;
   }
   i++;
 
-  while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - '0');
+  while (line[i] != ' ' && line[i] != ',') {
+    temp.push_back(line[i] - '0');
     i++;
   }
   rs2 = getnum(temp, 10);
   temp.clear();
 
-  while (code[index][i] == ' ' || code[index][i] == ',') {
+  while (line[i] == ' ' || line[i] == ',') {
     i++;
   }
 
-  while (i < code[index].size() && code[index][i] != ' ' &&
-         code[index][i] != '#') {
-    label += code[index][i];
+  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+    label += line[i];
     i++;
   }
   imme = getlab(label, index);
@@ -806,18 +795,20 @@ void typenumber(const std::string ins, const int index, const int index1) {
 void process(void) {
   size = code.size();
   for (size_t i = 0; i < size; i++) {
+    const std::string &line = code[i];
     std::string ins;
     size_t j = 0;
-    while (j < code[i].size() && code[i][j] != ' ') {
-      ins += code[i][j];
+
+    while (j < line.size() && line[j] != ' ') {
+      ins += line[j];
       j++;
     }
 
     size_t sins = ins.size();
-    if (ins[sins - 1] == ':' && code[i].size() > sins) {
+    if (ins[sins - 1] == ':' && line.size() > sins) {
       ins.clear();
-      while (j < code[i].size() && code[i][j] == ' ') j++;
-      while (j < code[i].size() && code[i][j] != ' ') ins += code[i][j++];
+      while (j < line.size() && line[j] == ' ') j++;
+      while (j < line.size() && line[j] != ' ') ins += line[j++];
     }
 
     for (size_t k = 0; k < sizeI; k++) {
@@ -845,27 +836,29 @@ void process(void) {
 // To convert Stack Pointer(sp) to x2
 void preprocess(void) {
   for (size_t i = 0; i < code.size(); i++) {
-    size_t inssize = code[i].size();
+    std::string &line = code[i];
+    size_t inssize = line.size();
+
     for (size_t j = 1; j < inssize; j++) {
-      if (code[i][j - 1] == ' ' && code[i][j] == 's' && j + 1 < inssize &&
-          code[i][j + 1] == 'p' && j + 2 < inssize && code[i][j + 2] == ' ') {
-        code[i][j] = 'x';
-        code[i][j + 1] = '2';
+      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < inssize &&
+          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ' ') {
+        line[j] = 'x';
+        line[j + 1] = '2';
       }
-      if (code[i][j - 1] == '(' && code[i][j] == 's' && j + 1 < inssize &&
-          code[i][j + 1] == 'p' && j + 2 < inssize && code[i][j + 2] == ')') {
-        code[i][j] = 'x';
-        code[i][j + 1] = '2';
+      if (line[j - 1] == '(' && line[j] == 's' && j + 1 < inssize &&
+          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ')') {
+        line[j] = 'x';
+        line[j + 1] = '2';
       }
-      if (code[i][j - 1] == ' ' && code[i][j] == 's' && j + 1 < inssize &&
-          code[i][j + 1] == 'p' && j + 2 < inssize && code[i][j + 2] == ',') {
-        code[i][j] = 'x';
-        code[i][j + 1] = '2';
+      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < inssize &&
+          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ',') {
+        line[j] = 'x';
+        line[j + 1] = '2';
       }
-      if (code[i][j - 1] == ',' && code[i][j] == 's' && j + 1 < inssize &&
-          code[i][j + 1] == 'p' && j + 2 < inssize && code[i][j + 2] == ',') {
-        code[i][j] = 'x';
-        code[i][j + 1] = '2';
+      if (line[j - 1] == ',' && line[j] == 's' && j + 1 < inssize &&
+          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ',') {
+        line[j] = 'x';
+        line[j + 1] = '2';
       }
     }
   }
