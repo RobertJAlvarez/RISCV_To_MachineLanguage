@@ -37,7 +37,7 @@ struct seg {
 std::vector<seg> datalabel;
 
 // To get 2's Complement Representation for Immediate Values
-ll_t getinver(ll_t imme, const int bit) {
+static ll_t __get_inver(ll_t imme, const int bit) {
   std::vector<int> bb;
   imme = -imme;
   int i, j;
@@ -69,7 +69,7 @@ ll_t getinver(ll_t imme, const int bit) {
 }
 
 // To convert a number in std::string format to its Hexadecimal
-std::string convert(const std::string s, const int len) {
+static std::string __convert(const std::string s, const int len) {
   size_t length = s.size();
   int flag = 1;
 
@@ -98,14 +98,14 @@ std::string convert(const std::string s, const int len) {
       mul *= 10;
     }
 
-    if (is_neg) num = getinver(num, len * 4);
+    if (is_neg) num = __get_inver(num, len * 4);
   } else {
     ll_t x;
     std::stringstream ss;
     ss << std::hex << s;
     ss >> x;
     num = x;
-    if (num < 0) num = getinver(num, len * 4);
+    if (num < 0) num = __get_inver(num, len * 4);
   }
 
   for (int i = 0; i < len; i++) {
@@ -124,7 +124,7 @@ typedef struct {
   std::vector<std::string> value;
 } datafile;
 
-void read_data(void) {
+static void __read_data(void) {
   std::ifstream file;
   std::string word;
   std::vector<datafile> stored;
@@ -193,14 +193,14 @@ void read_data(void) {
 
     for (size_t j = 0; j < stored[i].value.size(); j++) {
       if (stored[i].type == "byte") {
-        datamemory[pos++] = convert(stored[i].value[j], 2);
+        datamemory[pos++] = __convert(stored[i].value[j], 2);
       } else if (stored[i].type == "word") {
-        s = convert(stored[i].value[j], 8);
+        s = __convert(stored[i].value[j], 8);
         for (int k = 6; k >= 0; k -= 2) {
           datamemory[pos++] = s.substr(k, 2);
         }
       } else if (stored[i].type == "halfword") {
-        s = convert(stored[i].value[j], 4);
+        s = __convert(stored[i].value[j], 4);
         for (int k = 4; k >= 0; k -= 2) {
           datamemory[pos++] = s.substr(k, 2);
         }
@@ -209,7 +209,7 @@ void read_data(void) {
   }
 }
 
-void formats(const std::string filename) {
+static void __formats(const std::string filename) {
   std::ifstream myFile;
   std::string line;
 
@@ -220,13 +220,13 @@ void formats(const std::string filename) {
   myFile.close();
 }
 
-char h(const ll_t ind) {
+static char h(const ll_t ind) {
   if (ind <= 9) return ind + '0';
   return ind - 10 + 65;
 }
 
 // Return a numerical value of whose digits are stored in std::vector
-ll_t getnum(const std::vector<int> temp, const ll_t giv) {
+static ll_t __get_num(const std::vector<int> temp, const ll_t giv) {
   ll_t num = 1;
   ll_t ans = 0;
 
@@ -239,7 +239,7 @@ ll_t getnum(const std::vector<int> temp, const ll_t giv) {
 }
 
 // To get numerical value of hexadecimal Format
-ll_t gethex(std::vector<int> temp) {
+static ll_t __get_hex(std::vector<int> temp) {
   ll_t num = 1;
   ll_t ans = 0;
 
@@ -258,7 +258,7 @@ ll_t gethex(std::vector<int> temp) {
   return ans;
 }
 
-void hexa(void) {
+static void __hexa(void) {
   std::ofstream file;
   file.open(MC_FILE, std::ios_base::app);
   file << "0x";
@@ -281,7 +281,7 @@ void hexa(void) {
     std::vector<int> t;
     for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
 
-    file << h(getnum(t, 2));
+    file << h(__get_num(t, 2));
     i--;
   }
 
@@ -298,7 +298,7 @@ static void __get_reg_num(const std::string &line, size_t &i, ll_t &reg) {
     temp.push_back(line[i] - '0');
     i++;
   }
-  reg = getnum(temp, 10);
+  reg = __get_num(temp, 10);
   temp.clear();
 }
 
@@ -320,9 +320,9 @@ static void __get_dst_src(const std::string &line, ll_t &r1, ll_t &imm,
     i++;
   }
 
-  imm = (flag == 0 ? getnum(temp, 10) : gethex(temp));
+  imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
   temp.clear();
-  if (is_neg) imm = getinver(imm, 12);
+  if (is_neg) imm = __get_inver(imm, 12);
 
   while (line[i] != 'x') i++;
   i++;
@@ -331,7 +331,7 @@ static void __get_dst_src(const std::string &line, ll_t &r1, ll_t &imm,
     i++;
   }
 
-  r2 = getnum(temp, 10);
+  r2 = __get_num(temp, 10);
   temp.clear();
 }
 
@@ -353,13 +353,13 @@ static void __get_last_num(const std::string &line, size_t i, ll_t &imm) {
     i++;
   }
 
-  imm = (flag == 0 ? getnum(temp, 10) : gethex(temp));
-  if (is_neg) imm = getinver(imm, 12);
+  imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
+  if (is_neg) imm = __get_inver(imm, 12);
 
   temp.clear();
 }
 
-void IFunction(const int index, const std::string &format_line) {
+static void __i_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   ll_t rd, rs1, imme;
@@ -413,10 +413,10 @@ void IFunction(const int index, const std::string &format_line) {
     imme /= 2;
   }
 
-  hexa();
+  __hexa();
 }
 
-void SFunction(const int index, const std::string &format_line) {
+static void __s_type(const int index, const std::string &format_line) {
   ll_t rs1, rs2, imme;
   size_t i;
   std::vector<int> temp;
@@ -458,10 +458,10 @@ void SFunction(const int index, const std::string &format_line) {
     imme /= 2;
   }
 
-  hexa();
+  __hexa();
 }
 
-void RFunction(const int index, const std::string &format_line) {
+static void __r_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   ll_t rd, rs1, rs2;
@@ -478,7 +478,7 @@ void RFunction(const int index, const std::string &format_line) {
     temp.push_back(line[i] - '0');
     i++;
   }
-  rs2 = getnum(temp, 10);
+  rs2 = __get_num(temp, 10);
   temp.clear();
 
   i = 0;
@@ -515,7 +515,7 @@ void RFunction(const int index, const std::string &format_line) {
     binary[j] = format_line[i++] - '0';
   }
 
-  hexa();
+  __hexa();
 }
 
 // To get all_t the Labels used in Code
@@ -543,10 +543,10 @@ static void __get_label_imm(const int index, size_t &i, ll_t &imme,
     i++;
   }
   imme = __get_label(label, index);
-  if (imme < 0) imme = getinver(imme, n_bits);
+  if (imme < 0) imme = __get_inver(imme, n_bits);
 }
 
-void UJFunction(const int index, const std::string &format_line) {
+static void __uj_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   ll_t rd, imme;
@@ -586,10 +586,10 @@ void UJFunction(const int index, const std::string &format_line) {
     }
   }
 
-  hexa();
+  __hexa();
 }
 
-void UFunction(const int index, const std::string &format_line) {
+static void __u_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -614,9 +614,9 @@ void UFunction(const int index, const std::string &format_line) {
     i++;
   }
 
-  imme = (flag == 0 ? getnum(temp, 10) : gethex(temp));
+  imme = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
   temp.clear();
-  if (is_neg) imme = getinver(imme, 20);
+  if (is_neg) imme = __get_inver(imme, 20);
 
   i = 0;
   while (format_line[i] != ' ') i++;
@@ -637,10 +637,11 @@ void UFunction(const int index, const std::string &format_line) {
     binary[j] = imme % 2;
     imme /= 2;
   }
-  hexa();
+
+  __hexa();
 }
 
-void SBFunction(const int index, const std::string &format_line) {
+static void __sb_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -690,21 +691,22 @@ void SBFunction(const int index, const std::string &format_line) {
 
   binary[0] = imme % 2;
   imme /= 2;
-  hexa();
+
+  __hexa();
 }
 
-void typenumber(const std::string ins, const int index,
-                const std::string &format_line) {
-  if (ins == "I") IFunction(index, format_line);
-  if (ins == "R") RFunction(index, format_line);
-  if (ins == "S") SFunction(index, format_line);
-  if (ins == "UJ") UJFunction(index, format_line);
-  if (ins == "U") UFunction(index, format_line);
-  if (ins == "SB") SBFunction(index, format_line);
+static void __type_number(const std::string ins, const int index,
+                          const std::string &format_line) {
+  if (ins == "I") __i_type(index, format_line);
+  if (ins == "R") __r_type(index, format_line);
+  if (ins == "S") __s_type(index, format_line);
+  if (ins == "UJ") __uj_type(index, format_line);
+  if (ins == "U") __u_type(index, format_line);
+  if (ins == "SB") __sb_type(index, format_line);
 }
 
 // To extract instruction type and process them independently
-void process(void) {
+static void __process(void) {
   size = code.size();
   for (size_t i = 0; i < size; i++) {
     const std::string &line = code[i];
@@ -742,7 +744,7 @@ void process(void) {
           k1--;
         }
         reverse(type1.begin(), type1.end());
-        typenumber(type1, i, Format[k]);
+        __type_number(type1, i, Format[k]);
         break;
       }
     }
@@ -750,7 +752,7 @@ void process(void) {
 }
 
 // To convert Stack Pointer(sp) to x2
-void preprocess(void) {
+static void __preprocess(void) {
   for (size_t i = 0; i < code.size(); i++) {
     std::string &line = code[i];
     size_t inssize = line.size();
@@ -781,7 +783,7 @@ void preprocess(void) {
 }
 
 // To process Load Address(la) psudo command
-void processla(const int index) {
+static void __processla(const int index) {
   const std::string &line = codeinit[index];
   std::string s, labeltype, labeladd;
   ll_t currentpc, labeladdress;
@@ -822,7 +824,8 @@ void processla(const int index) {
 }
 
 // To process Load Word (lw) psudo command
-void processlw(const std::string type, const int index, const ll_t pos) {
+static void __processlw(const std::string type, const int index,
+                        const ll_t pos) {
   const std::string &line = codeinit[index];
   std::string s, ins, labeladd;
   ll_t currentpc;
@@ -847,7 +850,7 @@ void processlw(const std::string type, const int index, const ll_t pos) {
 }
 
 // To expand all psudo instruction if present
-void shift(void) {
+static void __shift(void) {
   int n_code_lines = codeinit.size();
 
   std::cout << '\n';
@@ -888,7 +891,7 @@ void shift(void) {
     }
 
     if (ins == "la") {
-      processla(i);
+      __processla(i);
       continue;
     } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
       std::string lab;
@@ -907,7 +910,7 @@ void shift(void) {
       for (j = 0; j < datalabel.size(); j++) {
         if (lab.compare(datalabel[j].name) == 0) {
           flag = 0;
-          processlw(ins, i, datalabel[j].position);
+          __processlw(ins, i, datalabel[j].position);
           break;
         }
       }
@@ -938,7 +941,7 @@ void shift(void) {
 }
 
 // To extract all the labels from code
-void setlabel(void) {
+static void __setlabel(void) {
   size_t siz = codeinit.size();
   int count = -1;
 
@@ -1035,11 +1038,12 @@ int main(void) {
   std::ofstream file;
 
   for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
-  read_data();
+  __read_data();
 
   files.open(MC_FILE);
   files.close();
-  formats("Format.txt");
+
+  __formats("Format.txt");
 
   myFile.open("test.asm");
   int flag = 0;
@@ -1053,10 +1057,11 @@ int main(void) {
     if (flag != 1) codeinit.push_back(line);
   }
 
-  shift();
-  setlabel();
-  preprocess();
-  process();
+  __shift();
+  __setlabel();
+  __preprocess();
+  __process();
+
   myFile.close();
   file.open(MC_FILE, std::ios_base::app);
 
