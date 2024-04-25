@@ -5,15 +5,20 @@
 #include <sstream>   // std::stringstream
 #include <string>    // std::string
 
-#define ll long long int
 #define START 268435456
+#define DATA_MEMO_SIZE (4000)
+#define ARCH_SIZE (32)
 
 std::vector<std::string> codeinit;
 std::vector<std::string> code;
 std::vector<std::string> Format;
+
+// Initial Size of Data Memory
+std::string datamemory[DATA_MEMO_SIZE];
+
+ssize_t pccount = 0;
 size_t sizeI, size;
-int binary[32];
-ll pccount = 0;
+int binary[ARCH_SIZE];
 
 typedef struct {
   std::string s;
@@ -22,22 +27,15 @@ typedef struct {
 
 std::vector<lab> Label;
 
-// Initial Size of Data Memory is Fixed 4000 Bytes
-std::string datamemory[4000];
-
-struct datafile {
-  std::string name;
-  std::string type;
-  std::vector<std::string> value;
-};
-
 struct seg {
   std::string name;
-  ll position;
+  ssize_t position;
 };
 
+std::vector<seg> datalabel;
+
 // To get 2's Complement Representation for Immediate Values
-ll getinver(ll imme, const int bit) {
+ssize_t getinver(ssize_t imme, const int bit) {
   std::vector<int> bb;
   imme = -imme;
   int i, j;
@@ -58,8 +56,8 @@ ll getinver(ll imme, const int bit) {
   }
   bb[j] = 1;
 
-  ll num = 0;
-  ll mul = 1;
+  ssize_t num = 0;
+  ssize_t mul = 1;
   for (i = bit - 1; i >= 0; i--) {
     num += bb[i] * mul;
     mul *= 2;
@@ -67,8 +65,6 @@ ll getinver(ll imme, const int bit) {
 
   return num;
 }
-
-std::vector<seg> datalabel;
 
 // To convert a number in std::string format to its Hexadecimal
 std::string convert(const std::string s, const int len) {
@@ -83,10 +79,10 @@ std::string convert(const std::string s, const int len) {
   }
 
   std::string ans;
-  ll num = 0;
+  ssize_t num = 0;
 
   if (flag) {
-    ll mul = 1;
+    ssize_t mul = 1;
     int last = 0;
     int flag1 = 0;
 
@@ -99,7 +95,7 @@ std::string convert(const std::string s, const int len) {
 
     if (flag1) num = getinver(num, len * 4);
   } else {
-    ll x;
+    ssize_t x;
     std::stringstream ss;
     ss << std::hex << s;
     ss >> x;
@@ -108,7 +104,7 @@ std::string convert(const std::string s, const int len) {
   }
 
   for (int i = 0; i < len; i++) {
-    ll rem = num % 16;
+    ssize_t rem = num % 16;
     ans += (rem <= 9 ? (rem + 48) : (rem - 10 + 65));
     num /= 16;
   }
@@ -117,13 +113,21 @@ std::string convert(const std::string s, const int len) {
   return ans;
 }
 
+typedef struct {
+  std::string name;
+  std::string type;
+  std::vector<std::string> value;
+} datafile;
+
 void read_data(void) {
   std::ifstream file;
   std::string word;
   std::vector<datafile> stored;
-  file.open("test.asm");
+
   int flag;
   int start = 0;
+
+  file.open("test.asm");
 
   if (file.is_open()) {
     while (!file.eof()) {
@@ -137,7 +141,6 @@ void read_data(void) {
         if (word == ".text")  // data part ends
           start = 2;
         else {
-          datafile temp;
           flag = 0;
           int index;
 
@@ -148,29 +151,26 @@ void read_data(void) {
             }
           }
 
+          datafile temp;
+
           if (flag == 1) {
-            std::string nameT = "\0", typeT = "\0";
+            std::string nameT = "\0";
+            std::string typeT = "\0";
             for (int i = 0; i < index; i++) nameT += word[i];
             for (size_t i = index + 2; i < word.size(); i++) typeT += word[i];
             temp.name = nameT;
             temp.type = typeT;
-            getline(file, word);
-            std::stringstream ss(word);
-            while (ss >> word) {
-              temp.value.push_back(word);
-            }
           } else {
             word.erase(word.end() - 1);
             temp.name = word;
             file >> word;
             word.erase(word.begin());
             temp.type = word;
-            getline(file, word);
-            std::stringstream ss(word);
-            while (ss >> word) {
-              temp.value.push_back(word);
-            }
           }
+
+          getline(file, word);
+          std::stringstream ss(word);
+          while (ss >> word) temp.value.push_back(word);
           stored.push_back(temp);
         }
       }
@@ -204,10 +204,11 @@ void read_data(void) {
   }
 }
 
-void formats(void) {
+void formats(const std::string filename) {
   std::ifstream myFile;
-  myFile.open("Format.txt");
   std::string line;
+
+  myFile.open(filename);
 
   while (getline(myFile, line)) Format.push_back(line);
 
@@ -215,17 +216,17 @@ void formats(void) {
   myFile.close();
 }
 
-char h(const ll ind) {
+char h(const ssize_t ind) {
   if (ind <= 9) return ind + 48;
   return ind - 10 + 65;
 }
 
 // Return a numerical value of whose digits are stored in std::vector
-ll getnum(const std::vector<int> temp, const ll giv) {
-  ll num = 1;
-  ll ans = 0;
+ssize_t getnum(const std::vector<int> temp, const ssize_t giv) {
+  ssize_t num = 1;
+  ssize_t ans = 0;
 
-  for (ll i = temp.size() - 1; i >= 0; i--) {
+  for (ssize_t i = temp.size() - 1; i >= 0; i--) {
     ans += num * temp[i];
     num *= giv;
   }
@@ -234,11 +235,11 @@ ll getnum(const std::vector<int> temp, const ll giv) {
 }
 
 // To get numerical value of hexadecimal Format
-ll gethex(std::vector<int> temp) {
-  ll num = 1;
-  ll ans = 0;
+ssize_t gethex(std::vector<int> temp) {
+  ssize_t num = 1;
+  ssize_t ans = 0;
 
-  for (ll i = temp.size() - 1; i > 1; i--) {
+  for (ssize_t i = temp.size() - 1; i > 1; i--) {
     if (temp[i] < 16) {
       ans += temp[i] * num;
     } else if (temp[i] <= 42) {
@@ -258,7 +259,7 @@ void hexa(void) {
   file.open("MCode.mc", std::ios_base::app);
   file << "0x";
   std::string s;
-  ll temppc = pccount;
+  ssize_t temppc = pccount;
 
   if (temppc == 0) s += '0';
 
@@ -272,20 +273,19 @@ void hexa(void) {
   file << s << " ";
   file << "0x";
 
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < ARCH_SIZE; i++) {
     std::vector<int> t;
     for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
 
-    char a = h(getnum(t, 2));
-    file << a;
+    file << h(getnum(t, 2));
     i--;
   }
 
-  file << "\n";
+  file << '\n';
   pccount += 4;
 }
 
-// To get all the Labels used in Code
+// To get assize_t the Labels used in Code
 int getlab(const std::string label, const int ind) {
   int sizelabel = Label.size();
 
@@ -312,7 +312,7 @@ void IFunction(const int index, const int index1) {
     }
   }
 
-  ll rd, rs1, imme;
+  ssize_t rd, rs1, imme;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -395,7 +395,7 @@ void IFunction(const int index, const int index1) {
 
   i++;
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
 
   i++;
   j = 24;
@@ -422,7 +422,7 @@ void IFunction(const int index, const int index1) {
 }
 
 void SFunction(const int index, const int index1) {
-  ll rs1, rs2, imme;
+  ssize_t rs1, rs2, imme;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -467,7 +467,7 @@ void SFunction(const int index, const int index1) {
 
   i++;
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
   i++;
 
   j = 24;
@@ -501,7 +501,7 @@ void SFunction(const int index, const int index1) {
 }
 
 void RFunction(const int index, const int index1) {
-  ll rd, rs1, rs2;
+  ssize_t rd, rs1, rs2;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -543,7 +543,7 @@ void RFunction(const int index, const int index1) {
 
   i++;
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
   i++;
 
   j = 24;
@@ -574,7 +574,7 @@ void RFunction(const int index, const int index1) {
 }
 
 void UJFunction(const int index, const int index1) {
-  ll rd, imme;
+  ssize_t rd, imme;
   size_t i = 0;
   std::string label;
 
@@ -612,7 +612,7 @@ void UJFunction(const int index, const int index1) {
   i++;
 
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
   i++;
 
   j = 24;
@@ -642,7 +642,7 @@ void UJFunction(const int index, const int index1) {
 }
 
 void UFunction(const int index, const int index1) {
-  ll rd, imme;
+  ssize_t rd, imme;
   size_t i = 0;
   std::string label;
 
@@ -689,7 +689,7 @@ void UFunction(const int index, const int index1) {
   i++;
 
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
   i++;
 
   j = 24;
@@ -707,7 +707,7 @@ void UFunction(const int index, const int index1) {
 }
 
 void SBFunction(const int index, const int index1) {
-  ll rs1, rs2, imme;
+  ssize_t rs1, rs2, imme;
   size_t i = 0;
   std::string label;
 
@@ -747,9 +747,7 @@ void SBFunction(const int index, const int index1) {
   }
   imme = getlab(label, index);
 
-  if (imme < 0) {
-    imme = getinver(imme, 12);
-  }
+  if (imme < 0) imme = getinver(imme, 12);
 
   i = 0;
   while (Format[index1][i] != ' ') {
@@ -758,7 +756,7 @@ void SBFunction(const int index, const int index1) {
   i++;
 
   int j;
-  for (j = 25; j <= 31; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
 
   i++;
   for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - 48;
@@ -788,6 +786,7 @@ void SBFunction(const int index, const int index1) {
 
   binary[24] = imme % 2;
   imme /= 2;
+
   binary[0] = imme % 2;
   imme /= 2;
   hexa();
@@ -891,7 +890,7 @@ void processla(const int index) {
   while (i < codeinit[index].size() && codeinit[index][i] != ' ') {
     labeltype += codeinit[index][i++];
   }
-  ll labeladdress = 0;
+  ssize_t labeladdress = 0;
 
   for (size_t j = 0; j < datalabel.size(); j++) {
     if (labeltype.compare(datalabel[j].name) == 0) {
@@ -902,7 +901,7 @@ void processla(const int index) {
 
   labeladdress = labeladdress - currentpc;
   std::string labeladd;
-  ll temp1 = abs(labeladdress);
+  ssize_t temp1 = abs(labeladdress);
 
   while (temp1 != 0) {
     labeladd += (temp1 % 10) + 48;
@@ -916,9 +915,9 @@ void processla(const int index) {
 }
 
 // To process Load Word (lw) psudo command
-void processlw(const std::string type, const int index, const ll pos) {
+void processlw(const std::string type, const int index, const ssize_t pos) {
   std::string s, ins, labeladd;
-  ll currentpc = code.size() * 4 + START;
+  ssize_t currentpc = code.size() * 4 + START;
   int i = 0;
 
   while (codeinit[index][i] != 'x') i++;
@@ -929,7 +928,7 @@ void processlw(const std::string type, const int index, const ll pos) {
 
   currentpc = pos - currentpc;
   code.push_back("auipc x" + s + " 65536");
-  ll temp1 = abs(currentpc);
+  ssize_t temp1 = abs(currentpc);
 
   while (temp1 != 0) {
     labeladd += (temp1 % 10) + 48;
@@ -941,16 +940,17 @@ void processlw(const std::string type, const int index, const ll pos) {
   code.push_back(type + " x" + s + " " + labeladd + "(x" + s + ")");
 }
 
-// To expand all psudo instruction if present
+// To expand assize_t psudo instruction if present
 void shift(void) {
   int siz = codeinit.size();
 
+  std::cout << '\n';
+
   for (int i = 0; i < siz; i++) {
     size_t j;
+    // std::cout << std::to_string(i) << ": " << codeinit[i] << '\n';
     for (j = 0; j < codeinit[i].size(); j++) {
-      if (codeinit[i][j] == 9) {
-        codeinit[i][j] = 32;
-      }
+      if (codeinit[i][j] == '\t') codeinit[i][j] = ' ';
     }
 
     std::string ins;
@@ -1124,12 +1124,12 @@ int main(void) {
   std::ofstream files;
   std::ofstream file;
 
-  for (int i = 0; i < 4000; i++) datamemory[i] = "00";
+  for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
   read_data();
 
   files.open("MCode.mc");
   files.close();
-  formats();
+  formats("Format.txt");
 
   myFile.open("test.asm");
   int flag = 0;
@@ -1143,7 +1143,9 @@ int main(void) {
     if (flag != 1) codeinit.push_back(line);
   }
 
+  // std::cout << "1146\n";
   shift();
+  // std::cout << "1148\n";
   setlabel();
   preprocess();
   process();
