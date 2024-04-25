@@ -43,7 +43,7 @@ static ll_t __get_inver(ll_t imme, const int bit) {
   int i, j;
 
   for (i = 0; i < bit; i++) {
-    bb.push_back(imme % 2);
+    bb.push_back(imme & 1);
     imme /= 2;
   }
 
@@ -292,8 +292,8 @@ static void __hexa(void) {
 static void __get_reg_num(const std::string &line, size_t &i, ll_t &reg) {
   std::vector<int> temp;
 
-  while (line[i] != 'x') i++;
-  i++;
+  i = line.find('x', i) + 1;
+
   while (line[i] != ' ' && line[i] != ',') {
     temp.push_back(line[i] - '0');
     i++;
@@ -324,8 +324,8 @@ static void __get_dst_src(const std::string &line, ll_t &r1, ll_t &imm,
   temp.clear();
   if (is_neg) imm = __get_inver(imm, 12);
 
-  while (line[i] != 'x') i++;
-  i++;
+  i = line.find('x', i) + 1;
+
   while (i < line.size() && line[i] != ')') {
     temp.push_back(line[i] - '0');
     i++;
@@ -359,6 +359,20 @@ static void __get_last_num(const std::string &line, size_t i, ll_t &imm) {
   temp.clear();
 }
 
+static void __fill_bin(const std::string &format_line, size_t &i, const int start, const int end) {
+  for (int j = start; j < end; j++) {
+    binary[j] = format_line[i++] - '0';
+  }
+  i++;
+}
+
+static void __fill_bin(ll_t reg, const int start, const int end) {
+  for (int j = start; j > end; j--) {
+    binary[j] = reg & 1;
+    reg /= 2;
+  }
+}
+
 static void __i_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
@@ -384,34 +398,13 @@ static void __i_type(const int index, const std::string &format_line) {
     __get_dst_src(line, rd, imme, rs1);
   }
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
+  i = format_line.find(' ') + 1;
 
-  i++;
-  int j;
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-
-  for (j = 24; j > 19; j--) {
-    binary[j] = rd % 2;
-    rd /= 2;
-  }
-
-  for (j = 17; j <= 19; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-
-  for (j = 16; j > 11; j--) {
-    binary[j] = rs1 % 2;
-    rs1 /= 2;
-  }
-
-  for (int k = 0; k < 12; k++) {
-    binary[j--] = imme % 2;
-    imme /= 2;
-  }
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(rd,24,19);
+  __fill_bin(format_line, i, 17, 20);
+  __fill_bin(rs1,16,11);
+  __fill_bin(imme, 11, -1);
 
   __hexa();
 }
@@ -423,40 +416,24 @@ static void __s_type(const int index, const std::string &format_line) {
 
   __get_dst_src(code[index], rs2, imme, rs1);
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
+  i = format_line.find(' ') + 1;
 
-  i++;
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(imme, 24, 19);
+
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
+
+  // __fill_bin(imme, 24, 19);
 
   for (j = 24; j > 19; j--) {
-    binary[j] = imme % 2;
+    binary[j] = imme & 1;
     imme /= 2;
   }
 
-  for (j = 17; j <= 19; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-
-  for (j = 16; j > 11; j--) {
-    binary[j] = rs1 % 2;
-    rs1 /= 2;
-  }
-
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs2 % 2;
-    rs2 /= 2;
-  }
-
-  for (j = 6; j >= 0; j--) {
-    binary[j] = imme % 2;
-    imme /= 2;
-  }
+  __fill_bin(format_line, i, 17, 20);
+  __fill_bin(rs1,16,11);
+  __fill_bin(rs2, 11, 6);
+  __fill_bin(imme, 6, -1);
 
   __hexa();
 }
@@ -472,8 +449,8 @@ static void __r_type(const int index, const std::string &format_line) {
   __get_reg_num(line, i, rd);
   __get_reg_num(line, i, rs1);
 
-  while (line[i] != 'x') i++;
-  i++;
+  i = line.find('x', i) + 1;
+
   while (i < line.size() && line[i] != ' ' && line[i] != '#') {
     temp.push_back(line[i] - '0');
     i++;
@@ -481,39 +458,14 @@ static void __r_type(const int index, const std::string &format_line) {
   rs2 = __get_num(temp, 10);
   temp.clear();
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
-  i++;
+  i = format_line.find(' ') + 1;
 
-  int j;
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-
-  for (j = 24; j > 19; j--) {
-    binary[j] = rd % 2;
-    rd /= 2;
-  }
-
-  for (j = 17; j <= 19; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-
-  for (j = 16; j > 11; j--) {
-    binary[j] = rs1 % 2;
-    rs1 /= 2;
-  }
-
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs2 % 2;
-    rs2 /= 2;
-  }
-
-  for (j = 0; j <= 6; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(rd,24,19);
+  __fill_bin(format_line, i, 17, 20);
+  __fill_bin(rs1,16,11);
+  __fill_bin(rs2, 11, 6);
+  __fill_bin(format_line, i, 0, 7);
 
   __hexa();
 }
@@ -556,32 +508,25 @@ static void __uj_type(const int index, const std::string &format_line) {
   __get_reg_num(line, i, rd);
   __get_label_imm(index, i, imme, 20);
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
+  i = format_line.find(' ') + 1;
 
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[++i] - '0';
-  }
-
-  for (j = 24; j > 19; j--) {
-    binary[j] = rd % 2;
-    rd /= 2;
-  }
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(rd,24,19);
 
   j = 10;
   for (int k = 0; k < 20; k++) {
     if (k <= 9) {
-      binary[j--] = imme % 2;
+      binary[j--] = imme & 1;
       imme /= 2;
     } else if (k == 10) {
-      binary[11] = imme % 2;
+      binary[11] = imme & 1;
       imme /= 2;
       j = 19;
     } else if (k != 19) {
-      binary[j--] = imme % 2;
+      binary[j--] = imme & 1;
       imme /= 2;
     } else {
-      binary[0] = imme % 2;
+      binary[0] = imme & 1;
       imme /= 2;
     }
   }
@@ -618,25 +563,11 @@ static void __u_type(const int index, const std::string &format_line) {
   temp.clear();
   if (is_neg) imme = __get_inver(imme, 20);
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
-  i++;
+  i = format_line.find(' ') + 1;
 
-  int j;
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-
-  for (j = 24; j > 19; j--) {
-    binary[j] = rd % 2;
-    rd /= 2;
-  }
-
-  for (j = 19; j >= 0; j--) {
-    binary[j] = imme % 2;
-    imme /= 2;
-  }
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(rd,24,19);
+  __fill_bin(imme, 19, -1);
 
   __hexa();
 }
@@ -646,51 +577,34 @@ static void __sb_type(const int index, const std::string &format_line) {
   std::vector<int> temp;
   std::string label;
   ll_t rs1, rs2, imme;
-  size_t i, j;
+  size_t i;
 
   i = 0;
   __get_reg_num(line, i, rs1);
   __get_reg_num(line, i, rs2);
   __get_label_imm(index, i, imme, 12);
 
-  i = 0;
-  while (format_line[i] != ' ') i++;
-  i++;
+  i = format_line.find(' ') + 1;
 
-  for (j = 25; j < ARCH_SIZE; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
-  i++;
-  for (j = 17; j <= 19; j++) {
-    binary[j] = format_line[i++] - '0';
-  }
+  __fill_bin(format_line, i, 25, ARCH_SIZE);
+  __fill_bin(format_line, i, 17, 20);
+  __fill_bin(rs1,16,11);
+  __fill_bin(rs2, 11, 6);
 
-  for (j = 16; j > 11; j--) {
-    binary[j] = rs1 % 2;
-    rs1 /= 2;
-  }
-  for (int k = 0; k < 5; k++) {
-    binary[j--] = rs2 % 2;
-    rs2 /= 2;
-  }
-
-  j = 23;
-  for (int k = 0; k < 4; k++) {
-    binary[j--] = imme % 2;
+  for (int j = 23; j > 19; j--) {
+    binary[j] = imme & 1;
     imme /= 2;
   }
 
-  j = 6;
-  for (int k = 0; k < 6; k++) {
-    binary[j--] = imme % 2;
+  for (int j = 6; j >= 0; j--) {
+    binary[j] = imme & 1;
     imme /= 2;
   }
 
-  binary[24] = imme % 2;
+  binary[24] = imme & 1;
   imme /= 2;
 
-  binary[0] = imme % 2;
-  imme /= 2;
+  binary[0] = imme & 1;
 
   __hexa();
 }
@@ -789,14 +703,14 @@ static void __processla(const int index) {
   ll_t currentpc, labeladdress;
   size_t i = 0;
 
-  while (line[i] != 'x') i++;
-  i++;
+  i = line.find('x') + 1;
+
   while (line[i] != ' ') s += line[i++];
 
   code.push_back("auipc x" + s + " 65536");
   currentpc = (code.size() * 4 - 4) + START;
 
-  while (line[i] == ' ') i++;
+  i = line.find(' ', i);
 
   while (i < line.size() && line[i] != ' ') {
     labeltype += line[i++];
@@ -829,10 +743,10 @@ static void __processlw(const std::string type, const int index,
   const std::string &line = codeinit[index];
   std::string s, ins, labeladd;
   ll_t currentpc;
-  int i = 0;
+  int i;
 
-  while (line[i] != 'x') i++;
-  i++;
+  i = line.find('x') + 1;
+
   while (line[i] != ' ') s += line[i++];
 
   currentpc = pos - (code.size() * 4 + START);
@@ -895,9 +809,8 @@ static void __shift(void) {
       continue;
     } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
       std::string lab;
-      j = line.size() - 1;
 
-      while (line[j] == ' ') j--;
+      j = line.find_last_not_of(' ', line.size() - 1);
 
       while (line[j] != ' ') {
         lab += line[j];
@@ -988,8 +901,8 @@ static void __setlabel(void) {
       continue;
     } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
       std::string lab;
-      j = line.size() - 1;
-      while (line[j] == ' ') j--;
+
+      j = line.find_last_not_of(' ', line.size() - 1);
 
       while (line[j] != ' ') {
         lab += line[j];
