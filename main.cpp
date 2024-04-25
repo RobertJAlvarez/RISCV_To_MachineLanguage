@@ -5,6 +5,7 @@
 #include <sstream>   // std::stringstream
 #include <string>    // std::string
 
+#define ll_t long long int
 #define START 268435456
 #define DATA_MEMO_SIZE (4000)
 #define ARCH_SIZE (32)
@@ -16,7 +17,7 @@ std::vector<std::string> Format;
 // Initial Size of Data Memory
 std::string datamemory[DATA_MEMO_SIZE];
 
-ssize_t pccount = 0;
+ll_t pccount = 0;
 size_t sizeI, size;
 int binary[ARCH_SIZE];
 
@@ -29,13 +30,13 @@ std::vector<lab> Label;
 
 struct seg {
   std::string name;
-  ssize_t position;
+  ll_t position;
 };
 
 std::vector<seg> datalabel;
 
 // To get 2's Complement Representation for Immediate Values
-ssize_t getinver(ssize_t imme, const int bit) {
+ll_t getinver(ll_t imme, const int bit) {
   std::vector<int> bb;
   imme = -imme;
   int i, j;
@@ -56,8 +57,8 @@ ssize_t getinver(ssize_t imme, const int bit) {
   }
   bb[j] = 1;
 
-  ssize_t num = 0;
-  ssize_t mul = 1;
+  ll_t num = 0;
+  ll_t mul = 1;
   for (i = bit - 1; i >= 0; i--) {
     num += bb[i] * mul;
     mul *= 2;
@@ -79,23 +80,23 @@ std::string convert(const std::string s, const int len) {
   }
 
   std::string ans;
-  ssize_t num = 0;
+  ll_t num = 0;
 
   if (flag) {
-    ssize_t mul = 1;
+    ll_t mul = 1;
     int last = 0;
     int flag1 = 0;
 
     if (s[0] == '-') flag1 = 1;
     if (flag1) last = 1;
     for (int i = length - 1; i >= last; i--) {
-      num += (s[i] - 48) * mul;
+      num += (s[i] - '0') * mul;
       mul *= 10;
     }
 
     if (flag1) num = getinver(num, len * 4);
   } else {
-    ssize_t x;
+    ll_t x;
     std::stringstream ss;
     ss << std::hex << s;
     ss >> x;
@@ -104,8 +105,8 @@ std::string convert(const std::string s, const int len) {
   }
 
   for (int i = 0; i < len; i++) {
-    ssize_t rem = num % 16;
-    ans += (rem <= 9 ? (rem + 48) : (rem - 10 + 65));
+    ll_t rem = num % 16;
+    ans += (rem <= 9 ? (rem + '0') : (rem - 10 + 65));
     num /= 16;
   }
   reverse(ans.begin(), ans.end());
@@ -216,17 +217,17 @@ void formats(const std::string filename) {
   myFile.close();
 }
 
-char h(const ssize_t ind) {
-  if (ind <= 9) return ind + 48;
+char h(const ll_t ind) {
+  if (ind <= 9) return ind + '0';
   return ind - 10 + 65;
 }
 
 // Return a numerical value of whose digits are stored in std::vector
-ssize_t getnum(const std::vector<int> temp, const ssize_t giv) {
-  ssize_t num = 1;
-  ssize_t ans = 0;
+ll_t getnum(const std::vector<int> temp, const ll_t giv) {
+  ll_t num = 1;
+  ll_t ans = 0;
 
-  for (ssize_t i = temp.size() - 1; i >= 0; i--) {
+  for (ll_t i = temp.size() - 1; i >= 0; i--) {
     ans += num * temp[i];
     num *= giv;
   }
@@ -235,11 +236,11 @@ ssize_t getnum(const std::vector<int> temp, const ssize_t giv) {
 }
 
 // To get numerical value of hexadecimal Format
-ssize_t gethex(std::vector<int> temp) {
-  ssize_t num = 1;
-  ssize_t ans = 0;
+ll_t gethex(std::vector<int> temp) {
+  ll_t num = 1;
+  ll_t ans = 0;
 
-  for (ssize_t i = temp.size() - 1; i > 1; i--) {
+  for (ll_t i = temp.size() - 1; i > 1; i--) {
     if (temp[i] < 16) {
       ans += temp[i] * num;
     } else if (temp[i] <= 42) {
@@ -259,7 +260,7 @@ void hexa(void) {
   file.open("MCode.mc", std::ios_base::app);
   file << "0x";
   std::string s;
-  ssize_t temppc = pccount;
+  ll_t temppc = pccount;
 
   if (temppc == 0) s += '0';
 
@@ -285,7 +286,7 @@ void hexa(void) {
   pccount += 4;
 }
 
-// To get assize_t the Labels used in Code
+// To get all_t the Labels used in Code
 int getlab(const std::string label, const int ind) {
   int sizelabel = Label.size();
 
@@ -312,7 +313,7 @@ void IFunction(const int index, const int index1) {
     }
   }
 
-  ssize_t rd, rs1, imme;
+  ll_t rd, rs1, imme;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -321,14 +322,14 @@ void IFunction(const int index, const int index1) {
     while (code[index][i] != 'x') i++;
 
     for (i++; code[index][i] != ' ' && code[index][i] != ','; i++)
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
 
     rd = getnum(temp, 10);
     temp.clear();
     while (code[index][i] != 'x') i++;
 
     for (i++; code[index][i] != ' ' && code[index][i] != ','; i++)
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
 
     rs1 = getnum(temp, 10);
     temp.clear();
@@ -344,7 +345,7 @@ void IFunction(const int index, const int index1) {
     int flag = 0;
     while (i < code[index].size() && code[index][i] != ' ' &&
            code[index][i] != '#' && code[index][i] != ',') {
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
       if (code[index][i] == 'x') flag = 1;
       i++;
     }
@@ -357,20 +358,20 @@ void IFunction(const int index, const int index1) {
 
     i++;
     while (code[index][i] != ' ' && code[index][i] != ',') {
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
       i++;
     }
 
     rd = getnum(temp, 10);
     temp.clear();
-    while (!(code[index][i] >= 48 && code[index][i] <= 57)) i++;
+    while (!(code[index][i] >= '0' && code[index][i] <= '9')) i++;
 
     int flag1 = 0;
     if (code[index][i - 1] == '-') flag1 = 1;
 
     int flag = 0;
     while (code[index][i] != '(') {
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
       if (code[index][i] == 'x') flag = 1;
       i++;
     }
@@ -383,7 +384,7 @@ void IFunction(const int index, const int index1) {
 
     i++;
     while (i < code[index].size() && code[index][i] != ')') {
-      temp.push_back(code[index][i] - 48);
+      temp.push_back(code[index][i] - '0');
       i++;
     }
     rs1 = getnum(temp, 10);
@@ -395,16 +396,16 @@ void IFunction(const int index, const int index1) {
 
   i++;
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
-
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
   i++;
+
   j = 24;
   for (int k = 0; k < 5; k++) {
     binary[j--] = rd % 2;
     rd /= 2;
   }
 
-  for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - '0';
 
   i++;
   j = 16;
@@ -422,7 +423,7 @@ void IFunction(const int index, const int index1) {
 }
 
 void SFunction(const int index, const int index1) {
-  ssize_t rs1, rs2, imme;
+  ll_t rs1, rs2, imme;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -430,19 +431,19 @@ void SFunction(const int index, const int index1) {
 
   i++;
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs2 = getnum(temp, 10);
   temp.clear();
 
-  while (!(code[index][i] >= 48 && code[index][i] <= 57)) i++;
+  while (!(code[index][i] >= '0' && code[index][i] <= '9')) i++;
 
   int flag1 = (i - 1 >= 0 && code[index][i - 1] == '-' ? 1 : 0);
 
   int flag = 0;
   while (code[index][i] != '(') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     if (code[index][i] == 'x') flag = 1;
     i++;
   }
@@ -456,7 +457,7 @@ void SFunction(const int index, const int index1) {
 
   i++;
   while (i < code[index].size() && code[index][i] != ')') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs1 = getnum(temp, 10);
@@ -467,7 +468,7 @@ void SFunction(const int index, const int index1) {
 
   i++;
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
   i++;
 
   j = 24;
@@ -477,7 +478,7 @@ void SFunction(const int index, const int index1) {
   }
 
   for (j = 17; j <= 19; j++) {
-    binary[j] = Format[index1][i++] - 48;
+    binary[j] = Format[index1][i++] - '0';
   }
   i++;
 
@@ -501,7 +502,7 @@ void SFunction(const int index, const int index1) {
 }
 
 void RFunction(const int index, const int index1) {
-  ssize_t rd, rs1, rs2;
+  ll_t rd, rs1, rs2;
   size_t i = 0;
   std::vector<int> temp;
 
@@ -511,7 +512,7 @@ void RFunction(const int index, const int index1) {
   i++;
 
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
@@ -521,7 +522,7 @@ void RFunction(const int index, const int index1) {
 
   i++;
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs1 = getnum(temp, 10);
@@ -532,7 +533,7 @@ void RFunction(const int index, const int index1) {
   i++;
   while (i < code[index].size() && code[index][i] != ' ' &&
          code[index][i] != '#' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs2 = getnum(temp, 10);
@@ -540,10 +541,10 @@ void RFunction(const int index, const int index1) {
 
   i = 0;
   while (Format[index1][i] != ' ') i++;
-
   i++;
+
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
   i++;
 
   j = 24;
@@ -552,9 +553,11 @@ void RFunction(const int index, const int index1) {
     rd /= 2;
   }
 
-  for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - 48;
-
+  for (j = 17; j <= 19; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
   i++;
+
   j = 16;
   for (int k = 0; k < 5; k++) {
     binary[j--] = rs1 % 2;
@@ -567,14 +570,14 @@ void RFunction(const int index, const int index1) {
   }
 
   for (j = 0; j <= 6; j++) {
-    binary[j] = Format[index1][i++] - 48;
+    binary[j] = Format[index1][i++] - '0';
   }
 
   hexa();
 }
 
 void UJFunction(const int index, const int index1) {
-  ssize_t rd, imme;
+  ll_t rd, imme;
   size_t i = 0;
   std::string label;
 
@@ -585,7 +588,7 @@ void UJFunction(const int index, const int index1) {
 
   std::vector<int> temp;
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
@@ -601,18 +604,16 @@ void UJFunction(const int index, const int index1) {
     i++;
   }
   imme = getlab(label, index);
-  if (imme < 0) {
-    imme = getinver(imme, 20);
-  }
+  if (imme < 0) imme = getinver(imme, 20);
 
   i = 0;
-  while (Format[index1][i] != ' ') {
-    i++;
-  }
+  while (Format[index1][i] != ' ') i++;
   i++;
 
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
   i++;
 
   j = 24;
@@ -642,7 +643,7 @@ void UJFunction(const int index, const int index1) {
 }
 
 void UFunction(const int index, const int index1) {
-  ssize_t rd, imme;
+  ll_t rd, imme;
   size_t i = 0;
   std::string label;
 
@@ -653,7 +654,7 @@ void UFunction(const int index, const int index1) {
 
   std::vector<int> temp;
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rd = getnum(temp, 10);
@@ -673,7 +674,7 @@ void UFunction(const int index, const int index1) {
 
   while (i < code[index].size() && code[index][i] != ' ' &&
          code[index][i] != '#') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     if (code[index][i] == 'x') flag = 1;
     i++;
   }
@@ -683,13 +684,13 @@ void UFunction(const int index, const int index1) {
   if (flag1) imme = getinver(imme, 20);
 
   i = 0;
-  while (Format[index1][i] != ' ') {
-    i++;
-  }
+  while (Format[index1][i] != ' ') i++;
   i++;
 
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
   i++;
 
   j = 24;
@@ -707,7 +708,7 @@ void UFunction(const int index, const int index1) {
 }
 
 void SBFunction(const int index, const int index1) {
-  ssize_t rs1, rs2, imme;
+  ll_t rs1, rs2, imme;
   size_t i = 0;
   std::string label;
 
@@ -718,7 +719,7 @@ void SBFunction(const int index, const int index1) {
 
   std::vector<int> temp;
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs1 = getnum(temp, 10);
@@ -730,7 +731,7 @@ void SBFunction(const int index, const int index1) {
   i++;
 
   while (code[index][i] != ' ' && code[index][i] != ',') {
-    temp.push_back(code[index][i] - 48);
+    temp.push_back(code[index][i] - '0');
     i++;
   }
   rs2 = getnum(temp, 10);
@@ -750,16 +751,16 @@ void SBFunction(const int index, const int index1) {
   if (imme < 0) imme = getinver(imme, 12);
 
   i = 0;
-  while (Format[index1][i] != ' ') {
-    i++;
-  }
+  while (Format[index1][i] != ' ') i++;
   i++;
 
   int j;
-  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 25; j < ARCH_SIZE; j++) binary[j] = Format[index1][i++] - '0';
 
   i++;
-  for (j = 17; j <= 19; j++) binary[j] = Format[index1][i++] - 48;
+  for (j = 17; j <= 19; j++) {
+    binary[j] = Format[index1][i++] - '0';
+  }
 
   j = 16;
   for (int k = 0; k < 5; k++) {
@@ -890,7 +891,7 @@ void processla(const int index) {
   while (i < codeinit[index].size() && codeinit[index][i] != ' ') {
     labeltype += codeinit[index][i++];
   }
-  ssize_t labeladdress = 0;
+  ll_t labeladdress = 0;
 
   for (size_t j = 0; j < datalabel.size(); j++) {
     if (labeltype.compare(datalabel[j].name) == 0) {
@@ -901,10 +902,10 @@ void processla(const int index) {
 
   labeladdress = labeladdress - currentpc;
   std::string labeladd;
-  ssize_t temp1 = abs(labeladdress);
+  ll_t temp1 = abs(labeladdress);
 
   while (temp1 != 0) {
-    labeladd += (temp1 % 10) + 48;
+    labeladd += (temp1 % 10) + '0';
     temp1 /= 10;
   }
 
@@ -915,9 +916,9 @@ void processla(const int index) {
 }
 
 // To process Load Word (lw) psudo command
-void processlw(const std::string type, const int index, const ssize_t pos) {
+void processlw(const std::string type, const int index, const ll_t pos) {
   std::string s, ins, labeladd;
-  ssize_t currentpc = code.size() * 4 + START;
+  ll_t currentpc = code.size() * 4 + START;
   int i = 0;
 
   while (codeinit[index][i] != 'x') i++;
@@ -928,10 +929,10 @@ void processlw(const std::string type, const int index, const ssize_t pos) {
 
   currentpc = pos - currentpc;
   code.push_back("auipc x" + s + " 65536");
-  ssize_t temp1 = abs(currentpc);
+  ll_t temp1 = abs(currentpc);
 
   while (temp1 != 0) {
-    labeladd += (temp1 % 10) + 48;
+    labeladd += (temp1 % 10) + '0';
     temp1 /= 10;
   }
 
@@ -940,7 +941,7 @@ void processlw(const std::string type, const int index, const ssize_t pos) {
   code.push_back(type + " x" + s + " " + labeladd + "(x" + s + ")");
 }
 
-// To expand assize_t psudo instruction if present
+// To expand all psudo instruction if present
 void shift(void) {
   int siz = codeinit.size();
 
@@ -1145,7 +1146,7 @@ int main(void) {
 
   // std::cout << "1146\n";
   shift();
-  // std::cout << "1148\n";
+  // std::cout << "11'0'\n";
   setlabel();
   preprocess();
   process();
