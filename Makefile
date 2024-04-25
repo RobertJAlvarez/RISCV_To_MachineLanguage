@@ -7,6 +7,7 @@ CFLAGS = -O3 -g3 -Wall -Wextra -Werror=format-security -Werror=implicit-function
 
 all: main
 
+# -Wc++11-extensions
 %.o: %.cpp
 	$(CC) -c -o $@ $(CFLAGS) $<
 

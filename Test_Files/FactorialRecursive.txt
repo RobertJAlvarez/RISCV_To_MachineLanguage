@@ -21,4 +21,4 @@ lw x11 0(sp)
 mul x10 x10 x11
 addi sp sp 4
 jalr x0 0(x1)
-exit:
+exit: #Fall_THRU
