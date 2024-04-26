@@ -3,6 +3,9 @@
 # new_output
 # gen.sh
 
+# Executable name
+main
+
 # Prerequisites
 *.d
 
