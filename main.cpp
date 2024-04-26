@@ -27,10 +27,10 @@ typedef struct {
 
 std::vector<lab> Label;
 
-struct seg {
+typedef struct {
   std::string name;
   int32_t position;
-};
+} seg;
 
 std::vector<seg> datalabel;
 
@@ -89,22 +89,93 @@ static std::string __convert(const std::string s, const int len) {
   return ans;
 }
 
-typedef struct {
-  std::string name;
-  std::string type;
-  std::vector<std::string> value;
-} datafile;
+static void __save_data_entry(const std::string name, const std::string type,
+                              const std::vector<std::string> value, int &pos) {
+  std::string s;
 
-static int __read_data(void) {
+  datalabel.push_back((seg){name, pos + START});
+
+  for (size_t j = 0; j < value.size(); j++) {
+    if (type == "byte") {
+      datamemory[pos++] = __convert(value[j], 2);
+    } else if (type == "word") {
+      s = __convert(value[j], 8);
+      for (int k = 6; k >= 0; k -= 2) {
+        datamemory[pos++] = s.substr(k, 2);
+      }
+    } else if (type == "halfword") {
+      s = __convert(value[j], 4);
+      for (int k = 4; k >= 0; k -= 2) {
+        datamemory[pos++] = s.substr(k, 2);
+      }
+    }
+  }
+}
+
+static void __read_data(std::ifstream &file) {
+  std::string word;
+  std::string name, type;
+  std::vector<std::string> value;
+  int index;
+  int flag;
+  int pos = 0;
+
+  while (!file.eof()) {
+    file >> word;
+    if (word == ".text") break;
+
+    flag = 0;
+
+    for (size_t i = 0; i < word.size() - 1; i++) {
+      if (word[i] == ':' && word[i + 1] == '.') {
+        flag = 1;
+        index = i;
+      }
+    }
+
+    if (flag == 1) {
+      name = "\0";
+      type = "\0";
+      for (int i = 0; i < index; i++) name += word[i];
+      for (size_t i = index + 2; i < word.size(); i++) type += word[i];
+    } else {
+      word.erase(word.end() - 1);
+      name = word;
+      file >> word;
+      word.erase(word.begin());
+      type = word;
+    }
+
+    getline(file, word);
+
+    std::stringstream ss(word);
+    while (ss >> word) value.push_back(word);
+
+    __save_data_entry(name, type, value, pos);
+
+    value.clear();
+  }
+}
+
+static void __read_text(std::ifstream &file) {
+  std::string line;
+  int flag = 0;
+
+  while (getline(file, line)) {
+    if (line == ".data") flag = 1;
+    if (line == ".text") {
+      flag = 0;
+      continue;
+    }
+    if (flag != 1) codeinit.push_back(line);
+  }
+}
+
+static int __read_assembly_file(const std::string &filename) {
   std::ifstream file;
   std::string word;
-  std::vector<datafile> stored;
 
-  int flag;
-  int start = 0;
-
-  file.open("test.asm");
-
+  file.open(filename);
   if (!file.is_open()) {
     std::cerr << "Error opening file." << std::endl;
     return 1;
@@ -112,76 +183,24 @@ static int __read_data(void) {
 
   while (!file.eof()) {
     file >> word;
-    if (start == 0) {
-      if (word == ".data")  // data part starts
-        start = 1;
-    } else if (start > 1) {
-      continue;
-    } else if (start == 1) {
-      if (word == ".text")  // data part ends
-        start = 2;
-      else {
-        flag = 0;
-        int index;
 
-        for (size_t i = 0; i < word.size() - 1; i++) {
-          if (word[i] == ':' && word[i + 1] == '.') {
-            flag = 1;
-            index = i;
-          }
-        }
-
-        datafile temp;
-
-        if (flag == 1) {
-          std::string nameT = "\0";
-          std::string typeT = "\0";
-          for (int i = 0; i < index; i++) nameT += word[i];
-          for (size_t i = index + 2; i < word.size(); i++) typeT += word[i];
-          temp.name = nameT;
-          temp.type = typeT;
-        } else {
-          word.erase(word.end() - 1);
-          temp.name = word;
-          file >> word;
-          word.erase(word.begin());
-          temp.type = word;
-        }
-
-        getline(file, word);
-        std::stringstream ss(word);
-        while (ss >> word) temp.value.push_back(word);
-        stored.push_back(temp);
-      }
+    if (word == ".data") {
+      __read_data(file);
+      break;
     }
   }
 
   file.close();
 
-  int pos = 0;
-  std::string s;
-
-  for (size_t i = 0; i < stored.size(); i++) {
-    datalabel.push_back((seg){stored[i].name, pos + START});
-
-    for (size_t j = 0; j < stored[i].value.size(); j++) {
-      if (stored[i].type == "byte") {
-        datamemory[pos++] = __convert(stored[i].value[j], 2);
-      } else if (stored[i].type == "word") {
-        // std::cout << "227" << std::endl;
-        s = __convert(stored[i].value[j], 8);
-        // std::cout << s << std::endl;
-        for (int k = 6; k >= 0; k -= 2) {
-          datamemory[pos++] = s.substr(k, 2);
-        }
-      } else if (stored[i].type == "halfword") {
-        s = __convert(stored[i].value[j], 4);
-        for (int k = 4; k >= 0; k -= 2) {
-          datamemory[pos++] = s.substr(k, 2);
-        }
-      }
-    }
+  file.open(filename);
+  if (!file.is_open()) {
+    std::cerr << "Error opening file." << std::endl;
+    return 1;
   }
+
+  __read_text(file);
+
+  file.close();
 
   return 0;
 }
@@ -847,34 +866,28 @@ static void __setlabel(void) {
 }
 
 // Driver Code
-int main(void) {
+int main(int argc, char *argv[]) {
   const std::string s =
       "-------------------------------------------------------";
   std::ifstream myFile;
-  std::string line;
   std::ofstream files;
   std::ofstream file;
 
+  if (argc != 2) {
+    std::cerr << "A file Assembly file most be given as the second and only "
+                 "parameter."
+              << std::endl;
+    return 1;
+  }
+
   for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
 
-  if (__read_data()) return 1;
+  if (__read_assembly_file(argv[1])) return 1;
 
   files.open(MC_FILE);
   files.close();
 
   __formats("Format.txt");
-
-  myFile.open("test.asm");
-  int flag = 0;
-
-  while (getline(myFile, line)) {
-    if (line == ".data") flag = 1;
-    if (line == ".text") {
-      flag = 0;
-      continue;
-    }
-    if (flag != 1) codeinit.push_back(line);
-  }
 
   __shift();
   __setlabel();
@@ -882,7 +895,6 @@ int main(void) {
   __preprocess();
   __process();
 
-  myFile.close();
   file.open(MC_FILE, std::ios_base::app);
 
   file << s << std::endl;
