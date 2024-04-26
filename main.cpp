@@ -6,7 +6,7 @@
 #include <string>    // std::string
 
 #define START 268435456
-#define DATA_MEMO_SIZE (4000)
+#define DATA_MEMO_SIZE (200)
 #define ARCH_SIZE (32)
 #define MC_FILE ("MCode.mc")
 
@@ -18,7 +18,6 @@ static std::vector<std::string> Format;
 std::string datamemory[DATA_MEMO_SIZE];
 
 int32_t pc = 0;
-size_t size;
 int binary[ARCH_SIZE];
 
 typedef struct {
@@ -35,7 +34,8 @@ struct seg {
 
 std::vector<seg> datalabel;
 
-// If positive, take twos complement of the first n_bits. Else, turn to 0 all bits higher than n_bits
+// If positive, take twos complement of the first n_bits. Else, turn to 0 all
+// bits higher than n_bits
 static uint32_t __get_inver(int32_t num, const int n_bits) {
   // Create a mask with the first n bits set to 1
   int32_t mask = (n_bits >= 32 ? 0 : 1 << n_bits) - 1;
@@ -46,7 +46,7 @@ static uint32_t __get_inver(int32_t num, const int n_bits) {
   // If num is negative we truncate it to the first n_bits
   num &= mask;
 
-  return (uint32_t) num;
+  return (uint32_t)num;
 }
 
 static char __int_to_hex(const int32_t num) {
@@ -110,51 +110,51 @@ static int __read_data(void) {
     return 1;
   }
 
-    while (!file.eof()) {
-      file >> word;
-      if (start == 0) {
-        if (word == ".data")  // data part starts
-          start = 1;
-      } else if (start > 1) {
-        continue;
-      } else if (start == 1) {
-        if (word == ".text")  // data part ends
-          start = 2;
-        else {
-          flag = 0;
-          int index;
+  while (!file.eof()) {
+    file >> word;
+    if (start == 0) {
+      if (word == ".data")  // data part starts
+        start = 1;
+    } else if (start > 1) {
+      continue;
+    } else if (start == 1) {
+      if (word == ".text")  // data part ends
+        start = 2;
+      else {
+        flag = 0;
+        int index;
 
-          for (size_t i = 0; i < word.size() - 1; i++) {
-            if (word[i] == ':' && word[i + 1] == '.') {
-              flag = 1;
-              index = i;
-            }
+        for (size_t i = 0; i < word.size() - 1; i++) {
+          if (word[i] == ':' && word[i + 1] == '.') {
+            flag = 1;
+            index = i;
           }
-
-          datafile temp;
-
-          if (flag == 1) {
-            std::string nameT = "\0";
-            std::string typeT = "\0";
-            for (int i = 0; i < index; i++) nameT += word[i];
-            for (size_t i = index + 2; i < word.size(); i++) typeT += word[i];
-            temp.name = nameT;
-            temp.type = typeT;
-          } else {
-            word.erase(word.end() - 1);
-            temp.name = word;
-            file >> word;
-            word.erase(word.begin());
-            temp.type = word;
-          }
-
-          getline(file, word);
-          std::stringstream ss(word);
-          while (ss >> word) temp.value.push_back(word);
-          stored.push_back(temp);
         }
+
+        datafile temp;
+
+        if (flag == 1) {
+          std::string nameT = "\0";
+          std::string typeT = "\0";
+          for (int i = 0; i < index; i++) nameT += word[i];
+          for (size_t i = index + 2; i < word.size(); i++) typeT += word[i];
+          temp.name = nameT;
+          temp.type = typeT;
+        } else {
+          word.erase(word.end() - 1);
+          temp.name = word;
+          file >> word;
+          word.erase(word.begin());
+          temp.type = word;
+        }
+
+        getline(file, word);
+        std::stringstream ss(word);
+        while (ss >> word) temp.value.push_back(word);
+        stored.push_back(temp);
       }
     }
+  }
 
   file.close();
 
@@ -162,7 +162,7 @@ static int __read_data(void) {
   std::string s;
 
   for (size_t i = 0; i < stored.size(); i++) {
-    datalabel.push_back((seg) {stored[i].name, pos + START});
+    datalabel.push_back((seg){stored[i].name, pos + START});
 
     for (size_t j = 0; j < stored[i].value.size(); j++) {
       if (stored[i].type == "byte") {
@@ -230,37 +230,6 @@ static int32_t __get_hex(std::vector<int> temp) {
   return ans;
 }
 
-static void __hexa(void) {
-  std::ofstream file;
-  file.open(MC_FILE, std::ios_base::app);
-  file << "0x";
-  std::string s;
-  int32_t temppc = pc;
-
-  if (temppc == 0) s += '0';
-
-  while (temppc != 0) {
-    s += __int_to_hex(temppc % 16);
-    temppc /= 16;
-  }
-
-  reverse(s.begin(), s.end());
-  file << s << " 0x";
-
-  for (int i = 0; i < ARCH_SIZE; i++) {
-    std::vector<int> t;
-    for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
-
-    file << __int_to_hex(__get_num(t, 2));
-    i--;
-  }
-
-  file << '\n';
-  pc += 4;
-
-  file.close();
-}
-
 static void __get_reg_num(const std::string &line, size_t &i, int32_t &reg) {
   std::vector<int> temp;
 
@@ -285,8 +254,8 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
   while (!isdigit(line[i])) i++;
 
   int is_neg = (i - 1 >= 0 && line[i - 1] == '-' ? 1 : 0);
-
   int flag = 0;
+
   while (line[i] != '(') {
     temp.push_back(line[i] - '0');
     if (line[i] == 'x') flag = 1;
@@ -295,6 +264,7 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
 
   imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
   temp.clear();
+
   if (is_neg) imm = __get_inver(imm, 12);
 
   i = line.find('x', i) + 1;
@@ -308,7 +278,8 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
   temp.clear();
 }
 
-static void __get_last_num(const std::string &line, size_t i, int32_t &imm) {
+static void __get_last_num(const std::string &line, size_t i, int32_t &imm,
+                           const int n_bits) {
   std::vector<int> temp;
   int flag = 0;
   int is_neg = 0;
@@ -327,29 +298,61 @@ static void __get_last_num(const std::string &line, size_t i, int32_t &imm) {
   }
 
   imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
-  if (is_neg) imm = __get_inver(imm, 12);
+  if (is_neg) imm = __get_inver(imm, n_bits);
 
   temp.clear();
 }
 
-static void __fill_bin(const std::string &format_line, size_t &i, const int start, const int end) {
+static void __fill_bin(const std::string &format_line, size_t &i,
+                       const int start, const int end) {
   for (int j = start; j < end; j++) {
     binary[j] = format_line[i++] - '0';
   }
   i++;
 }
 
-static void __fill_bin(int32_t reg, const int start, const int end) {
+static void __fill_bin(int32_t &num, const int start, const int end) {
   for (int j = start; j > end; j--) {
-    binary[j] = reg & 1;
-    reg /= 2;
+    binary[j] = num & 1;
+    num /= 2;
   }
+}
+
+static void __hexa(void) {
+  std::ofstream file;
+  file.open(MC_FILE, std::ios_base::app);
+  file << "0x";
+  std::string s;
+  int32_t temppc = pc;
+
+  if (temppc == 0) s += '0';
+
+  while (temppc != 0) {
+    s += __int_to_hex(temppc % 16);
+    temppc /= 16;
+  }
+
+  reverse(s.begin(), s.end());
+  file << s << " 0x";
+
+  for (int i = 0; i < ARCH_SIZE; i++) {
+    std::vector<int> t;
+    for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
+    i--;
+
+    file << __int_to_hex(__get_num(t, 2));
+  }
+
+  file << '\n';
+  pc += 4;
+
+  file.close();
 }
 
 static void __i_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
-  int32_t rd, rs1, imme;
+  int32_t rd, rs1, imm;
   size_t size11 = line.size();
   int open_bracket = 0;
   size_t i;
@@ -366,47 +369,39 @@ static void __i_type(const int index, const std::string &format_line) {
     i = 1;
     __get_reg_num(line, i, rd);
     __get_reg_num(line, i, rs1);
-    __get_last_num(line, i, imme);
+    __get_last_num(line, i, imm, 12);
   } else {
-    __get_dst_src(line, rd, imme, rs1);
+    __get_dst_src(line, rd, imm, rs1);
   }
 
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(rd,24,19);
   __fill_bin(format_line, i, 17, 20);
-  __fill_bin(rs1,16,11);
-  __fill_bin(imme, 11, -1);
+
+  __fill_bin(rd, 24, 19);
+  __fill_bin(rs1, 16, 11);
+  __fill_bin(imm, 11, -1);
 
   __hexa();
 }
 
 static void __s_type(const int index, const std::string &format_line) {
-  int32_t rs1, rs2, imme;
+  int32_t rs1, rs2, imm;
   size_t i;
   std::vector<int> temp;
 
-  __get_dst_src(code[index], rs2, imme, rs1);
+  __get_dst_src(code[index], rs2, imm, rs1);
 
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(imme, 24, 19);
-
-  int j;
-
-  // __fill_bin(imme, 24, 19);
-
-  for (j = 24; j > 19; j--) {
-    binary[j] = imme & 1;
-    imme /= 2;
-  }
-
   __fill_bin(format_line, i, 17, 20);
-  __fill_bin(rs1,16,11);
+
+  __fill_bin(imm, 24, 19);
+  __fill_bin(rs1, 16, 11);
   __fill_bin(rs2, 11, 6);
-  __fill_bin(imme, 6, -1);
+  __fill_bin(imm, 6, -1);
 
   __hexa();
 }
@@ -424,7 +419,7 @@ static void __r_type(const int index, const std::string &format_line) {
 
   i = line.find('x', i) + 1;
 
-  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+  while (i < line.size() && line[i] != ' ') {
     temp.push_back(line[i] - '0');
     i++;
   }
@@ -434,11 +429,12 @@ static void __r_type(const int index, const std::string &format_line) {
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(rd,24,19);
   __fill_bin(format_line, i, 17, 20);
-  __fill_bin(rs1,16,11);
-  __fill_bin(rs2, 11, 6);
   __fill_bin(format_line, i, 0, 7);
+
+  __fill_bin(rd, 24, 19);
+  __fill_bin(rs1, 16, 11);
+  __fill_bin(rs2, 11, 6);
 
   __hexa();
 }
@@ -456,52 +452,50 @@ static int __get_label(const std::string label, const int ind) {
   return -1;
 }
 
-static void __get_label_imm(const int index, size_t &i, int32_t &imme,
+static void __get_label_imm(const int index, size_t &i, int32_t &imm,
                             const int n_bits) {
   const std::string &line = code[index];
   std::string label;
 
   i = line.find_first_not_of(" ,", i);
 
-  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
-    label += line[i];
-    i++;
-  }
+  label = line.substr(i, line.find(' ', i));
+  imm = __get_label(label, index);
 
-  imme = __get_label(label, index);
-  if (imme < 0) imme = __get_inver(imme, n_bits);
+  if (imm < 0) imm = __get_inver(imm, n_bits);
 }
 
 static void __uj_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
-  int32_t rd, imme;
+  int32_t rd, imm;
   size_t i, j;
 
   i = 0;
   __get_reg_num(line, i, rd);
-  __get_label_imm(index, i, imme, 20);
+  __get_label_imm(index, i, imm, 20);
 
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(rd,24,19);
+
+  __fill_bin(rd, 24, 19);
 
   j = 10;
   for (int k = 0; k < 20; k++) {
     if (k <= 9) {
-      binary[j--] = imme & 1;
-      imme /= 2;
+      binary[j--] = imm & 1;
+      imm /= 2;
     } else if (k == 10) {
-      binary[11] = imme & 1;
-      imme /= 2;
+      binary[11] = imm & 1;
+      imm /= 2;
       j = 19;
     } else if (k != 19) {
-      binary[j--] = imme & 1;
-      imme /= 2;
+      binary[j--] = imm & 1;
+      imm /= 2;
     } else {
-      binary[0] = imme & 1;
-      imme /= 2;
+      binary[0] = imm & 1;
+      imm /= 2;
     }
   }
 
@@ -512,36 +506,18 @@ static void __u_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
-  int32_t rd, imme;
+  int32_t rd, imm;
   size_t i = 0;
 
   __get_reg_num(line, i, rd);
-
-  i = line.find_first_not_of(" ,", i);
-
-  int flag = 0;
-  int is_neg = 0;
-
-  if (line[i] == '-') {
-    is_neg = 1;
-    i++;
-  }
-
-  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
-    temp.push_back(line[i] - '0');
-    if (line[i] == 'x') flag = 1;
-    i++;
-  }
-
-  imme = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
-  temp.clear();
-  if (is_neg) imme = __get_inver(imme, 20);
+  __get_last_num(line, i, imm, 20);
 
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(rd,24,19);
-  __fill_bin(imme, 19, -1);
+
+  __fill_bin(rd, 24, 19);
+  __fill_bin(imm, 19, -1);
 
   __hexa();
 }
@@ -550,35 +526,28 @@ static void __sb_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
-  int32_t rs1, rs2, imme;
+  int32_t rs1, rs2, imm;
   size_t i;
 
   i = 0;
   __get_reg_num(line, i, rs1);
   __get_reg_num(line, i, rs2);
-  __get_label_imm(index, i, imme, 12);
+  __get_label_imm(index, i, imm, 12);
 
   i = format_line.find(' ') + 1;
 
   __fill_bin(format_line, i, 25, ARCH_SIZE);
   __fill_bin(format_line, i, 17, 20);
-  __fill_bin(rs1,16,11);
+
+  __fill_bin(rs1, 16, 11);
   __fill_bin(rs2, 11, 6);
+  __fill_bin(imm, 23, 19);
+  __fill_bin(imm, 6, -1);
 
-  for (int j = 23; j > 19; j--) {
-    binary[j] = imme & 1;
-    imme /= 2;
-  }
+  binary[24] = imm & 1;
+  imm /= 2;
 
-  for (int j = 6; j >= 0; j--) {
-    binary[j] = imme & 1;
-    imme /= 2;
-  }
-
-  binary[24] = imme & 1;
-  imme /= 2;
-
-  binary[0] = imme & 1;
+  binary[0] = imm & 1;
 
   __hexa();
 }
@@ -595,47 +564,39 @@ static void __type_number(const std::string ins, const int index,
 
 // To extract instruction type and process them independently
 static void __process(void) {
-  size = code.size();
+  size_t size = code.size();
+  std::string instr;
+
   for (size_t i = 0; i < size; i++) {
     const std::string &line = code[i];
-    std::string ins;
     size_t j = 0;
 
-    while (j < line.size() && line[j] != ' ') {
-      ins += line[j];
-      j++;
-    }
+    j = line.find(' ');
+    instr = line.substr(0, j);
 
-    size_t sins = ins.size();
-    if (ins[sins - 1] == ':' && line.size() > sins) {
-      ins.clear();
-      while (j < line.size() && line[j] == ' ') j++;
-      while (j < line.size() && line[j] != ' ') ins += line[j++];
+    size_t instr_size = instr.size();
+
+    if (instr[instr_size - 1] == ':' && line.size() > instr_size) {
+      j = line.find_first_not_of(' ', j);
+
+      instr.clear();
+      instr = line.substr(j, line.find(' ', j) - j);
     }
 
     const size_t n_instructions = Format.size();
     for (size_t k = 0; k < n_instructions; k++) {
-      std::string type;
       const std::string &format_line = Format[k];
-      int k1 = 0;
+      std::string type;
 
-      while (format_line[k1] != ' ') {
-        type += format_line[k1];
-        k1++;
-      }
+      type = format_line.substr(0, format_line.find(' '));
 
-      if (ins.compare(type) == 0) {
-        k1 = format_line.size() - 1;
-        std::string type1;
-        while (format_line[k1] != ' ') {
-          type1 += (format_line[k1]);
-          k1--;
-        }
-        reverse(type1.begin(), type1.end());
-        __type_number(type1, i, Format[k]);
+      if (instr.compare(type) == 0) {
+        __type_number(format_line.substr(format_line.find_last_of(' ') + 1), i,
+                      Format[k]);
         break;
       }
     }
+    instr.clear();
   }
 }
 
@@ -643,26 +604,26 @@ static void __process(void) {
 static void __preprocess(void) {
   for (size_t i = 0; i < code.size(); i++) {
     std::string &line = code[i];
-    size_t inssize = line.size();
+    size_t instrsize = line.size();
 
-    for (size_t j = 1; j < inssize; j++) {
-      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < inssize &&
-          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ' ') {
+    for (size_t j = 1; j < instrsize; j++) {
+      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < instrsize &&
+          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ' ') {
         line[j] = 'x';
         line[j + 1] = '2';
       }
-      if (line[j - 1] == '(' && line[j] == 's' && j + 1 < inssize &&
-          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ')') {
+      if (line[j - 1] == '(' && line[j] == 's' && j + 1 < instrsize &&
+          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ')') {
         line[j] = 'x';
         line[j + 1] = '2';
       }
-      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < inssize &&
-          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ',') {
+      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < instrsize &&
+          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ',') {
         line[j] = 'x';
         line[j + 1] = '2';
       }
-      if (line[j - 1] == ',' && line[j] == 's' && j + 1 < inssize &&
-          line[j + 1] == 'p' && j + 2 < inssize && line[j + 2] == ',') {
+      if (line[j - 1] == ',' && line[j] == 's' && j + 1 < instrsize &&
+          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ',') {
         line[j] = 'x';
         line[j + 1] = '2';
       }
@@ -679,17 +640,14 @@ static void __processla(const int index) {
 
   i = line.find('x') + 1;
 
-  // s = line.substr(i, line.find_first_of(" ", i));
-  while (line[i] != ' ') s += line[i++];
+  s = line.substr(i, line.find_first_of(" ", i) - i);
 
   code.push_back("auipc x" + s + " 65536");
   currentpc = (code.size() * 4 - 4) + START;
 
   i = line.find(' ', i);
 
-  while (i < line.size() && line[i] != ' ') {
-    labeltype += line[i++];
-  }
+  labeltype = line.substr(i, line.find(' ', i) - i);
   labeladdress = 0;
 
   for (size_t j = 0; j < datalabel.size(); j++) {
@@ -716,14 +674,13 @@ static void __processla(const int index) {
 static void __processlw(const std::string type, const int index,
                         const int32_t pos) {
   const std::string &line = codeinit[index];
-  std::string s, ins, labeladd;
+  std::string s, labeladd;
   int32_t currentpc, temp1;
   int i;
 
   i = line.find('x') + 1;
 
-  // s = line.substr(i, line.find_first_of(" ", i));
-  while (line[i] != ' ') s += line[i++];
+  s = line.substr(i, line.find(" ", i) - i);
 
   currentpc = pos - (code.size() * 4 + START);
   code.push_back("auipc x" + s + " 65536");
@@ -736,6 +693,7 @@ static void __processlw(const std::string type, const int index,
 
   labeladd += (currentpc < 0 ? '-' : '0');
   reverse(labeladd.begin(), labeladd.end());
+
   code.push_back(type + " x" + s + " " + labeladd + "(x" + s + ")");
 }
 
@@ -752,46 +710,46 @@ static void __shift(void) {
       if (line[j] == '\t') line[j] = ' ';
     }
 
-    std::string ins;
+    std::string instr;
     int start;
 
     start = j = line.find_first_not_of(' ', 0);
 
     while (j < line.size() && line[j] != ' ') {
-      ins += line[j];
-      j++;
+      instr += line[j++];
       if (j < line.size() && line[j] == ':') {
-        ins += line[j];
-        j++;
+        instr += line[j++];
         break;
       }
     }
 
     j = line.find_first_not_of(',', j);
 
-    size_t sins = ins.size();
+    size_t instr_size = instr.size();
 
-    if (ins[sins - 1] == ':' && line.size() > sins) {
-      ins.clear();
+    if (instr[instr_size - 1] == ':' && line.size() > instr_size) {
+      instr.clear();
+
       start = j = line.find_first_not_of(' ', j);
-      while (line[j] != ' ') ins += line[j++];
+      // instr = line.substr(j, line.find(' ', j) - j);
+      while (line[j] != ' ') instr += line[j++];
     }
 
-    if (ins == "la") {
+    if (instr == "la") {
       __processla(i);
       continue;
-    } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
+    } else if (instr == "lw" || instr == "lb" || instr == "lhw") {
       std::string lab;
 
       j = line.find_last_not_of(' ', line.size() - 1);
 
-      lab = line.substr(line.find_last_of(" ", j)+1, j+1);
+      lab = line.substr(line.find_last_of(" ", j) + 1);
 
       int flag = 1;
       for (j = 0; j < datalabel.size(); j++) {
         if (lab.compare(datalabel[j].name) == 0) {
           flag = 0;
-          __processlw(ins, i, datalabel[j].position);
+          __processlw(instr, i, datalabel[j].position);
           break;
         }
       }
@@ -806,7 +764,7 @@ static void __shift(void) {
 
       type = format_line.substr(0, format_line.find(' '));
 
-      if (ins.compare(type) == 0) {
+      if (instr.compare(type) == 0) {
         code.push_back(line.substr(start, line.size()));
         break;
       }
@@ -821,50 +779,45 @@ static void __setlabel(void) {
 
   for (size_t i = 0; i < siz; i++) {
     const std::string &line = codeinit[i];
-    std::string ins;
+    std::string instr;
     size_t j;
 
     j = line.find_first_not_of(' ');
 
     while (j < line.size() && line[j] != ' ') {
-      ins += line[j++];
+      instr += line[j++];
+
       if (j < line.size() && line[j] == ':') {
-        ins += line[j++];
+        instr += line[j++];
         break;
       }
     }
 
-    size_t sins = ins.size();
-    if (ins[sins - 1] == ':') {
-      std::string ins1;
-      for (size_t k = 0; k < sins - 1; k++) ins1 += ins[k];
-      // lab temp = {ins1, count + 1};
-      Label.push_back((lab) {ins1, count + 1});
+    size_t instr_size = instr.size();
+    if (instr[instr_size - 1] == ':') {
+      Label.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
     }
 
-    if (ins[sins - 1] == ':' && sins < line.size()) {
-      while (j < line.size() && line[j] == ' ') j++;
+    if (instr[instr_size - 1] == ':' && instr_size < line.size()) {
+      j = line.find_first_not_of(' ', j);
+      instr.clear();
 
-      ins.clear();
+      // instr = line.substr(j, line.find(' ', j) - j);
       while (j < line.size() && line[j] != ' ') {
-        ins += line[j];
-        j++;
+        instr += line[j++];
       }
     }
 
-    if (ins == "la") {
+    if (instr == "la") {
       count += 2;
       continue;
-    } else if (ins == "lw" || ins == "lb" || ins == "lhw") {
+    } else if (instr == "lw" || instr == "lb" || instr == "lhw") {
       std::string lab;
 
       j = line.find_last_not_of(' ', line.size() - 1);
 
-      while (line[j] != ' ') {
-        lab += line[j];
-        j--;
-      }
-      reverse(lab.begin(), lab.end());
+      lab = line.substr(line.find_last_of(' ', j) + 1, j + 1);
+
       int flag = 1;
 
       for (j = 0; j < datalabel.size(); j++) {
@@ -882,14 +835,10 @@ static void __setlabel(void) {
     for (size_t k = 0; k < n_instructions; k++) {
       const std::string &format_line = Format[k];
       std::string type;
-      int k1 = 0;
 
-      while (format_line[k1] != ' ') {
-        type += format_line[k1];
-        k1++;
-      }
+      type = format_line.substr(0, format_line.find(' '));
 
-      if (ins.compare(type) == 0) {
+      if (instr.compare(type) == 0) {
         count++;
         break;
       }
@@ -906,8 +855,7 @@ int main(void) {
   std::ofstream files;
   std::ofstream file;
 
-  for (int i = 0; i < DATA_MEMO_SIZE; i++)
-    datamemory[i] = "00";
+  for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
 
   if (__read_data()) return 1;
 
@@ -940,7 +888,7 @@ int main(void) {
   file << s << std::endl;
 
   // Print the Data Memory Part in Increasing Address Order
-  for (int i = 0; i < 400; i++) {
+  for (int i = 0; i < DATA_MEMO_SIZE; i++) {
     file << datamemory[i] << " ";
     if ((i + 1) % 4 == 0) file << std::endl;
   }
