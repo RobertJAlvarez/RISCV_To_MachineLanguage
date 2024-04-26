@@ -50,7 +50,7 @@ for file in "$TEST_FILES_DIR"/*; do
 
     # Run the main executable
     echo "Running main with $file..."
-    "$MAIN_EXEC"
+    "$MAIN_EXEC" test.asm
 
     # Check if MCode.mc file was generated
     if [ -f "MCode.mc" ]; then

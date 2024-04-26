@@ -15,7 +15,7 @@ main: main.o
 	$(CC) -o $@ $<
 
 run: main 
-	./$<
+	./$< test.asm
 
 clean:
 	rm -f *.o main
