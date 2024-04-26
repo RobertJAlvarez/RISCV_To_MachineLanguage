@@ -60,7 +60,7 @@ for file in "$TEST_FILES_DIR"/*; do
       cp "MCode.mc" "$file2"
 
       # Run diff on the pair of files
-      echo "Running diff $file $file2"
+      echo "Running diff $ORG_OUTPUT/${filename%.*}.mc" "$file2"
       diff "$ORG_OUTPUT/${filename%.*}.mc" "$file2"
     else
       echo "Error: MCode.mc file not generated."
