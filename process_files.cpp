@@ -25,7 +25,7 @@ void __write_mc(const int32_t binary[], int32_t &pc) {
 
   mc_file << "0x" << s << " 0x";
 
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < ARCH_SIZE; i++) {
     std::vector<int> t;
     for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
     i--;

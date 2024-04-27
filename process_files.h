@@ -2,6 +2,7 @@
 #define __PROCESS_FILES_H__
 
 extern const int32_t START;
+extern const int32_t ARCH_SIZE;
 
 extern std::vector<std::string> codeinit;
 extern std::vector<std::string> formats;

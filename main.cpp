@@ -5,14 +5,13 @@
 #include "helper.h"
 #include "process_files.h"
 
-#define ARCH_SIZE (32)
-
 static std::vector<std::string> code;
 std::vector<std::string> codeinit;
 std::vector<std::string> formats;
 std::vector<seg> datalabel;
 
 const int32_t START = ((int32_t)(1 << 28));
+const int32_t ARCH_SIZE = 32;
 
 static int32_t pc = 0;
 static int32_t binary[ARCH_SIZE];
