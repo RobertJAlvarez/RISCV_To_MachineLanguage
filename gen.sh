@@ -68,3 +68,5 @@ for file in "$TEST_FILES_DIR"/*; do
   fi
 done
 
+make clean
+
