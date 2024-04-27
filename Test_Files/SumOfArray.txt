@@ -10,7 +10,7 @@ addi x1 x1 0
 loop: beq x1 x4 next
 slli x2 x1 2
 add x2 x2 x3
-sw x1 0(x2)
+sw x2 x1 0
 addi x1 x1 1
 jal x0 loop
 

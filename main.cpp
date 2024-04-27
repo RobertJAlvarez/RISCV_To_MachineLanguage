@@ -1,3 +1,5 @@
+#include <utility>   // std::pair
+#include <sstream>   // std::stringstream
 #include <iostream>  // std::endl, std::cerr
 
 #include "helper.h"
@@ -94,7 +96,7 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
 }
 
 static int32_t __get_last_num(const std::string &line, size_t i,
-                           const int n_bits) {
+                              const int n_bits) {
   std::vector<int> temp;
   int32_t imm;
   int flag = 0;
@@ -121,10 +123,11 @@ static int32_t __get_last_num(const std::string &line, size_t i,
   return imm;
 }
 
-static void __fill_bin(const std::string &format_line, size_t &i,
+static void __fill_bin(const std::string &format,
                        const int start, const int end) {
+  int i = 0;
   for (int j = start; j < end; j++) {
-    binary[j] = format_line[i++] - '0';
+    binary[j] = format[i++] - '0';
   }
   i++;
 }
@@ -136,64 +139,68 @@ static void __fill_bin(int32_t &num, const int start, const int end) {
   }
 }
 
-static void __i_type(const int index, const std::string &format_line) {
+static inline void __fill_bin_rd(int32_t rd) {
+  __fill_bin(rd, 24, 19);
+}
+
+static inline void __fill_bin_rs1(int32_t rs1) {
+  __fill_bin(rs1, 16, 11);
+}
+
+static inline void __fill_bin_rs2(int32_t rs2) {
+  __fill_bin(rs2, 11, 6);
+}
+
+static void __i_type(const int index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, rs1, imm;
-  size_t size11 = line.size();
-  int open_bracket = 0;
   size_t i;
 
-  for (i = 0; i < size11; i++) {
-    if (line[i] == '(') {
-      open_bracket = 1;
-      break;
-    }
-    if (line[i] == '#') break;
-  }
+  i = line.find_first_of("(#");
 
-  if (!open_bracket) {
+  if ((i != std::string::npos) && (line[i] == '(')) {
+    __get_dst_src(line, rd, imm, rs1);
+  } else {
     i = 1;
     rd = __get_reg_num(line, i);
     rs1 = __get_reg_num(line, i);
     imm = __get_last_num(line, i, 12);
-  } else {
-    __get_dst_src(line, rd, imm, rs1);
   }
 
-  i = format_line.find(' ') + 1;
-
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(format_line, i, 17, 20);
-
-  __fill_bin(rd, 24, 19);
-  __fill_bin(rs1, 16, 11);
+  __fill_bin_rd(rd);
+  __fill_bin_rs1(rs1);
   __fill_bin(imm, 11, -1);
 
   __write_mc(binary, pc);
 }
 
-static void __s_type(const int index, const std::string &format_line) {
+static void __s_type(const int index) {
+  const std::string &line = code[index];
+  std::vector<int> temp;
   int32_t rs1, rs2, imm;
   size_t i;
-  std::vector<int> temp;
 
-  __get_dst_src(code[index], rs2, imm, rs1);
+  i = line.find_first_of("(#");
 
-  i = format_line.find(' ') + 1;
+  if ((i != std::string::npos) && (line[i] == '(')) {
+    __get_dst_src(line, rs2, imm, rs1);
+  } else {
+    i = 1;
+    rs1 = __get_reg_num(line, i);
+    rs2 = __get_reg_num(line, i);
+    imm = __get_last_num(line, i, 12);
+  }
 
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(format_line, i, 17, 20);
-
+  __fill_bin_rs1(rs1);
+  __fill_bin_rs2(rs2);
   __fill_bin(imm, 24, 19);
-  __fill_bin(rs1, 16, 11);
-  __fill_bin(rs2, 11, 6);
   __fill_bin(imm, 6, -1);
 
   __write_mc(binary, pc);
 }
 
-static void __r_type(const int index, const std::string &format_line) {
+static void __r_type(const int index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, rs1, rs2;
@@ -213,15 +220,9 @@ static void __r_type(const int index, const std::string &format_line) {
   rs2 = __get_num(temp, 10);
   temp.clear();
 
-  i = format_line.find(' ') + 1;
-
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(format_line, i, 17, 20);
-  __fill_bin(format_line, i, 0, 7);
-
-  __fill_bin(rd, 24, 19);
-  __fill_bin(rs1, 16, 11);
-  __fill_bin(rs2, 11, 6);
+  __fill_bin_rd(rd);
+  __fill_bin_rs1(rs1);
+  __fill_bin_rs2(rs2);
 
   __write_mc(binary, pc);
 }
@@ -239,10 +240,11 @@ static int __get_label(const std::string label, const int ind) {
   return -1;
 }
 
-static void __get_label_imm(const int index, size_t &i, int32_t &imm,
+static int32_t __get_label_imm(const int index, size_t &i,
                             const int n_bits) {
   const std::string &line = code[index];
   std::string label;
+  int32_t imm;
 
   i = line.find_first_not_of(" ,", i);
 
@@ -250,9 +252,11 @@ static void __get_label_imm(const int index, size_t &i, int32_t &imm,
   imm = __get_label(label, index);
 
   if (imm < 0) imm = __get_inver(imm, n_bits);
+
+  return imm;
 }
 
-static void __uj_type(const int index, const std::string &format_line) {
+static void __uj_type(const int index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, imm;
@@ -260,13 +264,9 @@ static void __uj_type(const int index, const std::string &format_line) {
 
   i = 0;
   rd = __get_reg_num(line, i);
-  __get_label_imm(index, i, imm, 20);
+  imm = __get_label_imm(index, i, 20);
 
-  i = format_line.find(' ') + 1;
-
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-
-  __fill_bin(rd, 24, 19);
+  __fill_bin_rd(rd);
 
   j = 10;
   for (int k = 0; k < 20; k++) {
@@ -289,7 +289,7 @@ static void __uj_type(const int index, const std::string &format_line) {
   __write_mc(binary, pc);
 }
 
-static void __u_type(const int index, const std::string &format_line) {
+static void __u_type(const int index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -299,17 +299,13 @@ static void __u_type(const int index, const std::string &format_line) {
   rd = __get_reg_num(line, i);
   imm = __get_last_num(line, i, 20);
 
-  i = format_line.find(' ') + 1;
-
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-
-  __fill_bin(rd, 24, 19);
+  __fill_bin_rd(rd);
   __fill_bin(imm, 19, -1);
 
   __write_mc(binary, pc);
 }
 
-static void __sb_type(const int index, const std::string &format_line) {
+static void __sb_type(const int index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -319,15 +315,10 @@ static void __sb_type(const int index, const std::string &format_line) {
   i = 0;
   rs1 = __get_reg_num(line, i);
   rs2 = __get_reg_num(line, i);
-  __get_label_imm(index, i, imm, 12);
+  imm = __get_label_imm(index, i, 12);
 
-  i = format_line.find(' ') + 1;
-
-  __fill_bin(format_line, i, 25, ARCH_SIZE);
-  __fill_bin(format_line, i, 17, 20);
-
-  __fill_bin(rs1, 16, 11);
-  __fill_bin(rs2, 11, 6);
+  __fill_bin_rs1(rs1);
+  __fill_bin_rs2(rs2);
   __fill_bin(imm, 23, 19);
   __fill_bin(imm, 6, -1);
 
@@ -339,14 +330,13 @@ static void __sb_type(const int index, const std::string &format_line) {
   __write_mc(binary, pc);
 }
 
-static void __type_number(const std::string ins, const int index,
-                          const std::string &format_line) {
-  if (ins == "I") __i_type(index, format_line);
-  if (ins == "R") __r_type(index, format_line);
-  if (ins == "S") __s_type(index, format_line);
-  if (ins == "UJ") __uj_type(index, format_line);
-  if (ins == "U") __u_type(index, format_line);
-  if (ins == "SB") __sb_type(index, format_line);
+static void __process_instr(const std::string ins, const int index) {
+  if (ins == "I") __i_type(index);
+  if (ins == "R") __r_type(index);
+  if (ins == "S") __s_type(index);
+  if (ins == "UJ") __uj_type(index);
+  if (ins == "U") __u_type(index);
+  if (ins == "SB") __sb_type(index);
 }
 
 static std::string __get_token_after_label(const std::string &line, size_t j) {
@@ -359,22 +349,47 @@ static inline int __is_label(const std::string &instr) {
 }
 
 static std::string __get_instr_format(const std::string &instr) {
-    const size_t n_instructions = formats.size();
-    std::string type;
+  const size_t n_instructions = formats.size();
+  std::string type;
 
-    for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = formats[k];
+  for (size_t k = 0; k < n_instructions; k++) {
+    const std::string &format_line = formats[k];
 
-      type = format_line.substr(0, format_line.find(' '));
+    type = format_line.substr(0, format_line.find(' '));
 
-      if (instr.compare(type) == 0) return format_line;
-    }
-    return std::string();
+    if (instr.compare(type) == 0) return format_line;
+  }
+  return std::string();
 }
 
+static std::vector<std::string> tokenize(const std::string& str) {
+  std::vector<std::string> tokens;
+  std::istringstream iss(str);
+  std::string token;
 
-// To extract instruction type and process them independently
-static void __process(void) {
+  while (iss >> token) {
+    tokens.push_back(token);
+  }
+
+  return tokens;
+}
+
+static void __set_format_bin(const std::vector<std::string> &tokens) {
+  static std::vector<std::pair<int, int> > ranges;
+
+  if (ranges.empty()) {
+    ranges.push_back(std::make_pair(25, ARCH_SIZE));
+    ranges.push_back(std::make_pair(17, 20));
+    ranges.push_back(std::make_pair(0, 7));
+  }
+
+  for (size_t i = 1; i < tokens.size() - 1; i++) {
+    __fill_bin(tokens[i], ranges[i-1].first , ranges[i-1].second);
+  }
+}
+
+/* To extract instruction type and process them independently. */
+static void __process_code(void) {
   size_t size = code.size();
   std::string instr;
 
@@ -392,46 +407,18 @@ static void __process(void) {
 
     std::string format = __get_instr_format(instr);
 
-    if (!format.empty()) 
-      __type_number(format.substr(format.find_last_of(' ') + 1), i, format);
+    if (!format.empty()) {
+      const std::vector<std::string> tokens = tokenize(format);
+      __set_format_bin(tokens);
+      __process_instr(tokens.back(), i);
+    }
 
     instr.clear();
   }
 }
 
-// To convert Stack Pointer(sp) to x2
-static void __preprocess(void) {
-  for (size_t i = 0; i < code.size(); i++) {
-    std::string &line = code[i];
-    size_t instrsize = line.size();
-
-    for (size_t j = 1; j < instrsize; j++) {
-      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < instrsize &&
-          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ' ') {
-        line[j] = 'x';
-        line[j + 1] = '2';
-      }
-      if (line[j - 1] == '(' && line[j] == 's' && j + 1 < instrsize &&
-          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ')') {
-        line[j] = 'x';
-        line[j + 1] = '2';
-      }
-      if (line[j - 1] == ' ' && line[j] == 's' && j + 1 < instrsize &&
-          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ',') {
-        line[j] = 'x';
-        line[j + 1] = '2';
-      }
-      if (line[j - 1] == ',' && line[j] == 's' && j + 1 < instrsize &&
-          line[j + 1] == 'p' && j + 2 < instrsize && line[j + 2] == ',') {
-        line[j] = 'x';
-        line[j + 1] = '2';
-      }
-    }
-  }
-}
-
 // To process Load Address(la) psudo command
-static void __processla(const int index) {
+static void __process_la(const int index) {
   const std::string &line = codeinit[index];
   std::string s, labeltype, labeladd;
   int32_t currentpc, labeladdress;
@@ -470,7 +457,7 @@ static void __processla(const int index) {
 }
 
 // To process Load Word (lw) psudo command
-static void __processlw(const std::string type, const std::string &line,
+static void __process_lw(const std::string type, const std::string &line,
                         const int32_t pos) {
   std::string s, labeladd;
   int32_t currentpc, temp1;
@@ -529,8 +516,21 @@ static inline int is_load_instr(const std::string &instr) {
   return (instr == "lw" || instr == "lb" || instr == "lhw");
 }
 
+// To convert Stack Pointer(sp) to x2
+static std::string __change_sp(const std::string &org_line) {
+  std::string line = org_line;
+  size_t pos = 0;
+
+  while ((pos = line.find("sp", pos)) != std::string::npos) {
+    line.replace(pos, 2, "x2");
+    pos += 2;
+  }
+
+  return line;
+}
+
 /* Expand psudo-instruction and extract all the labels. */
-static void __process_code(void) {
+static void __pre_process_code(void) {
   size_t n_code_lines = codeinit.size();
   int count = -1;
 
@@ -556,14 +556,14 @@ static void __process_code(void) {
     }
 
     if (instr == "la") {
-      __processla(i);
+      __process_la(i);
       count += 2;
       continue;
     } else if (is_load_instr(instr)) {
       int32_t pos;
 
       if ((pos = __load_label(line)) != -1) {
-        __processlw(instr, line, pos);
+        __process_lw(instr, line, pos);
         count += 2;
         continue;
       }
@@ -572,7 +572,7 @@ static void __process_code(void) {
     std::string format = __get_instr_format(instr);
 
     if (!format.empty()) {
-      code.push_back(line.substr(start, line.size()));
+      code.push_back(__change_sp(line).substr(start));
       count++;
     }
 
@@ -594,9 +594,8 @@ int main(int argc, char *argv[]) {
 
   process_files(argv[1], format_file, mc_file);
 
+  __pre_process_code();
   __process_code();
-  __preprocess();
-  __process();
 
   save_mc();
 }
