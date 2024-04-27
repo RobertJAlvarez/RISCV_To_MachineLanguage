@@ -5,231 +5,29 @@
 #include <sstream>   // std::stringstream
 #include <string>    // std::string
 
-#define START 268435456
-#define DATA_MEMO_SIZE (200)
+#include "helper.h"
+#include "process_files.h"
+
 #define ARCH_SIZE (32)
-#define MC_FILE ("MCode.mc")
 
-static std::vector<std::string> codeinit;
 static std::vector<std::string> code;
-static std::vector<std::string> Format;
+std::vector<std::string> codeinit;
+std::vector<std::string> formats;
+std::vector<seg> datalabel;
 
-// Initial Size of Data Memory
-std::string datamemory[DATA_MEMO_SIZE];
+const int32_t START = ((int32_t)(1 << 28));
 
-int32_t pc = 0;
-int binary[ARCH_SIZE];
+static int32_t pc = 0;
+static int32_t binary[ARCH_SIZE];
 
 typedef struct {
   std::string s;
   int index;
 } lab;
 
-std::vector<lab> Label;
+static std::vector<lab> labels;
 
-typedef struct {
-  std::string name;
-  int32_t position;
-} seg;
-
-std::vector<seg> datalabel;
-
-// If positive, take twos complement of the first n_bits. Else, turn to 0 all
-// bits higher than n_bits
-static uint32_t __get_inver(int32_t num, const int n_bits) {
-  // Create a mask with the first n bits set to 1
-  int32_t mask = (n_bits >= 32 ? 0 : 1 << n_bits) - 1;
-
-  // Take the twos complement of the first n_bits
-  if (num >= 0) num = (num ^ mask) + 1;
-
-  // If num is negative we truncate it to the first n_bits
-  num &= mask;
-
-  return (uint32_t)num;
-}
-
-static char __int_to_hex(const int32_t num) {
-  if (num <= 9) return static_cast<char>('0' + num);
-  return static_cast<char>('A' + (num - 10));
-}
-
-// To convert a number in std::string format to its Hexadecimal
-static std::string __convert(const std::string s, const int len) {
-  std::stringstream ss;
-  std::string ans;
-  uint32_t num = 0;
-  int is_neg = 0;
-
-  // Convert input s into a number
-  if (s.find_first_of("xX") == std::string::npos) {
-    // If input is not in hex
-    if (s[0] == '-') {
-      is_neg = 1;
-      num = std::atoi(s.substr(1).c_str());
-    } else {
-      num = std::atoi(s.c_str());
-    }
-  } else {
-    ss << std::hex << s;
-    ss >> num;
-    is_neg = num < 0;
-  }
-
-  if (is_neg) num = __get_inver(num, len * 4);
-
-  // Convert number into hexadecimal number using 8 character.
-  // For example, 20 = 00000014
-  for (int i = 0; i < len; i++) {
-    ans += __int_to_hex(num % 0x10);
-    num /= 16;
-  }
-  reverse(ans.begin(), ans.end());
-
-  return ans;
-}
-
-static void __save_data_entry(const std::string name, const std::string type,
-                              const std::vector<std::string> value, int &pos) {
-  std::string s;
-
-  datalabel.push_back((seg){name, pos + START});
-
-  for (size_t j = 0; j < value.size(); j++) {
-    if (type == "byte") {
-      datamemory[pos++] = __convert(value[j], 2);
-    } else if (type == "word") {
-      s = __convert(value[j], 8);
-      for (int k = 6; k >= 0; k -= 2) {
-        datamemory[pos++] = s.substr(k, 2);
-      }
-    } else if (type == "halfword") {
-      s = __convert(value[j], 4);
-      for (int k = 4; k >= 0; k -= 2) {
-        datamemory[pos++] = s.substr(k, 2);
-      }
-    }
-  }
-}
-
-static void __read_data(std::ifstream &file) {
-  std::string word;
-  std::string name, type;
-  std::vector<std::string> value;
-  int index;
-  int flag;
-  int pos = 0;
-
-  while (!file.eof()) {
-    file >> word;
-    if (word == ".text") break;
-
-    flag = 0;
-
-    for (size_t i = 0; i < word.size() - 1; i++) {
-      if (word[i] == ':' && word[i + 1] == '.') {
-        flag = 1;
-        index = i;
-      }
-    }
-
-    if (flag == 1) {
-      name = "\0";
-      type = "\0";
-      for (int i = 0; i < index; i++) name += word[i];
-      for (size_t i = index + 2; i < word.size(); i++) type += word[i];
-    } else {
-      word.erase(word.end() - 1);
-      name = word;
-      file >> word;
-      word.erase(word.begin());
-      type = word;
-    }
-
-    getline(file, word);
-
-    std::stringstream ss(word);
-    while (ss >> word) value.push_back(word);
-
-    __save_data_entry(name, type, value, pos);
-
-    value.clear();
-  }
-}
-
-static void __read_text(std::ifstream &file) {
-  std::string line;
-  int flag = 0;
-
-  while (getline(file, line)) {
-    if (line == ".data") flag = 1;
-    if (line == ".text") {
-      flag = 0;
-      continue;
-    }
-    if (flag != 1) codeinit.push_back(line);
-  }
-}
-
-static int __read_assembly_file(const std::string &filename) {
-  std::ifstream file;
-  std::string word;
-
-  file.open(filename);
-  if (!file.is_open()) {
-    std::cerr << "Error opening file." << std::endl;
-    return 1;
-  }
-
-  while (!file.eof()) {
-    file >> word;
-
-    if (word == ".data") {
-      __read_data(file);
-      break;
-    }
-  }
-
-  file.close();
-
-  file.open(filename);
-  if (!file.is_open()) {
-    std::cerr << "Error opening file." << std::endl;
-    return 1;
-  }
-
-  __read_text(file);
-
-  file.close();
-
-  return 0;
-}
-
-static void __formats(const std::string filename) {
-  std::ifstream myFile;
-  std::string line;
-
-  myFile.open(filename);
-
-  while (getline(myFile, line)) Format.push_back(line);
-
-  myFile.close();
-}
-
-// Return a numerical value of whose digits are stored in std::vector
-static int32_t __get_num(const std::vector<int> temp, const int32_t giv) {
-  int32_t num = 1;
-  int32_t ans = 0;
-
-  for (int32_t i = temp.size() - 1; i >= 0; i--) {
-    ans += num * temp[i];
-    num *= giv;
-  }
-
-  return ans;
-}
-
-// To get numerical value of hexadecimal Format
+// To get numerical value of hexadecimal formats
 static int32_t __get_hex(std::vector<int> temp) {
   int32_t num = 1;
   int32_t ans = 0;
@@ -337,37 +135,6 @@ static void __fill_bin(int32_t &num, const int start, const int end) {
   }
 }
 
-static void __hexa(void) {
-  std::ofstream file;
-  file.open(MC_FILE, std::ios_base::app);
-  file << "0x";
-  std::string s;
-  int32_t temppc = pc;
-
-  if (temppc == 0) s += '0';
-
-  while (temppc != 0) {
-    s += __int_to_hex(temppc % 16);
-    temppc /= 16;
-  }
-
-  reverse(s.begin(), s.end());
-  file << s << " 0x";
-
-  for (int i = 0; i < ARCH_SIZE; i++) {
-    std::vector<int> t;
-    for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
-    i--;
-
-    file << __int_to_hex(__get_num(t, 2));
-  }
-
-  file << '\n';
-  pc += 4;
-
-  file.close();
-}
-
 static void __i_type(const int index, const std::string &format_line) {
   const std::string &line = code[index];
   std::vector<int> temp;
@@ -402,7 +169,7 @@ static void __i_type(const int index, const std::string &format_line) {
   __fill_bin(rs1, 16, 11);
   __fill_bin(imm, 11, -1);
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
 static void __s_type(const int index, const std::string &format_line) {
@@ -422,7 +189,7 @@ static void __s_type(const int index, const std::string &format_line) {
   __fill_bin(rs2, 11, 6);
   __fill_bin(imm, 6, -1);
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
 static void __r_type(const int index, const std::string &format_line) {
@@ -455,16 +222,16 @@ static void __r_type(const int index, const std::string &format_line) {
   __fill_bin(rs1, 16, 11);
   __fill_bin(rs2, 11, 6);
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
-// To get aint32_t the Labels used in Code
+// To get aint32_t the labelss used in Code
 static int __get_label(const std::string label, const int ind) {
-  int sizelabel = Label.size();
+  int sizelabel = labels.size();
 
   for (int i = 0; i < sizelabel; i++) {
-    if (label.compare(Label[i].s) == 0) {
-      return (Label[i].index - ind) * 2;
+    if (label.compare(labels[i].s) == 0) {
+      return (labels[i].index - ind) * 2;
     }
   }
 
@@ -518,7 +285,7 @@ static void __uj_type(const int index, const std::string &format_line) {
     }
   }
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
 static void __u_type(const int index, const std::string &format_line) {
@@ -538,7 +305,7 @@ static void __u_type(const int index, const std::string &format_line) {
   __fill_bin(rd, 24, 19);
   __fill_bin(imm, 19, -1);
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
 static void __sb_type(const int index, const std::string &format_line) {
@@ -568,7 +335,7 @@ static void __sb_type(const int index, const std::string &format_line) {
 
   binary[0] = imm & 1;
 
-  __hexa();
+  __write_mc(binary, pc);
 }
 
 static void __type_number(const std::string ins, const int index,
@@ -602,16 +369,16 @@ static void __process(void) {
       instr = line.substr(j, line.find(' ', j) - j);
     }
 
-    const size_t n_instructions = Format.size();
+    const size_t n_instructions = formats.size();
     for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = Format[k];
+      const std::string &format_line = formats[k];
       std::string type;
 
       type = format_line.substr(0, format_line.find(' '));
 
       if (instr.compare(type) == 0) {
         __type_number(format_line.substr(format_line.find_last_of(' ') + 1), i,
-                      Format[k]);
+                      formats[k]);
         break;
       }
     }
@@ -720,19 +487,15 @@ static void __processlw(const std::string type, const int index,
 static void __shift(void) {
   int n_code_lines = codeinit.size();
 
-  std::cout << '\n';
-
   for (int i = 0; i < n_code_lines; i++) {
     size_t j;
     std::string &line = codeinit[i];
-    for (j = 0; j < line.size(); j++) {
-      if (line[j] == '\t') line[j] = ' ';
-    }
-
     std::string instr;
     int start;
 
-    start = j = line.find_first_not_of(' ', 0);
+    std::replace(line.begin(), line.end(), '\t', ' ');
+
+    start = j = line.find_first_not_of(' ');
 
     while (j < line.size() && line[j] != ' ') {
       instr += line[j++];
@@ -776,9 +539,9 @@ static void __shift(void) {
       if (!flag) continue;
     }
 
-    const size_t n_instructions = Format.size();
+    const size_t n_instructions = formats.size();
     for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = Format[k];
+      const std::string &format_line = formats[k];
       std::string type;
 
       type = format_line.substr(0, format_line.find(' '));
@@ -814,7 +577,7 @@ static void __setlabel(void) {
 
     size_t instr_size = instr.size();
     if (instr[instr_size - 1] == ':') {
-      Label.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
+      labels.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
     }
 
     if (instr[instr_size - 1] == ':' && instr_size < line.size()) {
@@ -850,9 +613,9 @@ static void __setlabel(void) {
       if (!flag) continue;
     }
 
-    const size_t n_instructions = Format.size();
+    const size_t n_instructions = formats.size();
     for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = Format[k];
+      const std::string &format_line = formats[k];
       std::string type;
 
       type = format_line.substr(0, format_line.find(' '));
@@ -867,11 +630,8 @@ static void __setlabel(void) {
 
 // Driver Code
 int main(int argc, char *argv[]) {
-  const std::string s =
-      "-------------------------------------------------------";
-  std::ifstream myFile;
-  std::ofstream files;
-  std::ofstream file;
+  const std::string format_file = "Format.txt";
+  const std::string mc_file = "MCode.mc";
 
   if (argc != 2) {
     std::cerr << "A file Assembly file most be given as the second and only "
@@ -880,14 +640,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
-
-  if (__read_assembly_file(argv[1])) return 1;
-
-  files.open(MC_FILE);
-  files.close();
-
-  __formats("Format.txt");
+  process_files(argv[1], format_file, mc_file);
 
   __shift();
   __setlabel();
@@ -895,16 +648,5 @@ int main(int argc, char *argv[]) {
   __preprocess();
   __process();
 
-  file.open(MC_FILE, std::ios_base::app);
-
-  file << s << std::endl;
-
-  // Print the Data Memory Part in Increasing Address Order
-  for (int i = 0; i < DATA_MEMO_SIZE; i++) {
-    file << datamemory[i] << " ";
-    if ((i + 1) % 4 == 0) file << std::endl;
-  }
-
-  file << s << std::endl;
-  file.close();
+  save_mc();
 }

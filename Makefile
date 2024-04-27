@@ -1,5 +1,5 @@
 CC   = g++
-OBJS = 
+OBJS = helper.o process_files.o
 
 # -Wconversion
 CFLAGS = -O3 -g3 -Wall -Wextra -Werror=format-security -Werror=implicit-function-declaration \
@@ -11,8 +11,8 @@ all: main
 %.o: %.cpp
 	$(CC) -c -o $@ $(CFLAGS) $<
 
-main: main.o
-	$(CC) -o $@ $<
+main: $(OBJS) main.o
+	$(CC) -o $@ $^
 
 run: main 
 	./$< test.asm
@@ -20,5 +20,7 @@ run: main
 clean:
 	rm -f *.o main
 
-main.o: main.cpp
+main.o: main.cpp process_files.h helper.h
+process_files.o: process_files.cpp process_files.h helper.h
+helper.o: helper.cpp helper.h
 
