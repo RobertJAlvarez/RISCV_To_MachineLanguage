@@ -529,12 +529,13 @@ static inline int is_load_instr(const std::string &instr) {
   return (instr == "lw" || instr == "lb" || instr == "lhw");
 }
 
-// To expand all psudo instruction if present
-static void __shift(void) {
+/* Expand psudo-instruction and extract all the labels. */
+static void __process_code(void) {
   size_t n_code_lines = codeinit.size();
+  int count = -1;
 
   for (size_t i = 0; i < n_code_lines; i++) {
-    std::string &line = codeinit[i];
+    const std::string &line = codeinit[i];
     std::string instr;
     size_t j;
     int start;
@@ -544,68 +545,36 @@ static void __shift(void) {
 
     j = line.find_first_not_of(',', j);
 
-    if (__is_label(instr) && line.size() > instr.size() + 1) {
-      start = j = line.find_first_not_of(' ', j);
+    if (__is_label(instr)) {
+      labels.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
+      if (line.size() > instr.size() + 1) {
+        start = j = line.find_first_not_of(' ', j);
 
-      instr.clear();
-      instr = line.substr(j, line.find(' ', j) - j);
+        instr.clear();
+        instr = line.substr(j, line.find(' ', j) - j);
+      }
     }
 
     if (instr == "la") {
       __processla(i);
+      count += 2;
       continue;
     } else if (is_load_instr(instr)) {
       int32_t pos;
 
       if ((pos = __load_label(line)) != -1) {
         __processlw(instr, line, pos);
-        continue;
-      }
-    }
-
-    std::string format = __get_instr_format(instr);
-
-    if (!format.empty()) 
-      code.push_back(line.substr(start, line.size()));
-
-    instr.clear();
-  }
-}
-
-// To extract all the labels from code
-static void __setlabel(void) {
-  size_t n_code_lines = codeinit.size();
-  int count = -1;
-
-  for (size_t i = 0; i < n_code_lines; i++) {
-    const std::string &line = codeinit[i];
-    std::string instr;
-    size_t j;
-
-    j = line.find_first_not_of(' ');
-    instr = __get_token(line, j);
-
-    if (__is_label(instr)) {
-      labels.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
-      if (line.size() > instr.size() + 1) {
-        instr.clear();
-        instr = __get_token_after_label(line, j);
-      }
-    }
-
-    if (instr == "la") {
-      count += 2;
-      continue;
-    } else if (is_load_instr(instr)) {
-      if (__load_label(line) != -1) {
         count += 2;
         continue;
       }
     }
 
     std::string format = __get_instr_format(instr);
-    if (!format.empty()) 
-        count++;
+
+    if (!format.empty()) {
+      code.push_back(line.substr(start, line.size()));
+      count++;
+    }
 
     instr.clear();
   }
@@ -625,9 +594,7 @@ int main(int argc, char *argv[]) {
 
   process_files(argv[1], format_file, mc_file);
 
-  __shift();
-  __setlabel();
-
+  __process_code();
   __preprocess();
   __process();
 
