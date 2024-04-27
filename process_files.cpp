@@ -163,7 +163,10 @@ static void __read_text(std::ifstream &file) {
       flag = 0;
       continue;
     }
-    if (flag != 1) codeinit.push_back(line);
+    if (flag != 1) {
+      std::replace(line.begin(), line.end(), '\t', ' ');
+      codeinit.push_back(line);
+    }
   }
 }
 

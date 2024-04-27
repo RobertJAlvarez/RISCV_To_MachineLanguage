@@ -23,7 +23,7 @@ typedef struct {
 static std::vector<lab> labels;
 
 // To get numerical value of hexadecimal formats
-static int32_t __get_hex(std::vector<int> temp) {
+static int32_t __get_hex(std::vector<int> &temp) {
   int32_t num = 1;
   int32_t ans = 0;
 
@@ -42,8 +42,9 @@ static int32_t __get_hex(std::vector<int> temp) {
   return ans;
 }
 
-static void __get_reg_num(const std::string &line, size_t &i, int32_t &reg) {
+static int32_t __get_reg_num(const std::string &line, size_t &i) {
   std::vector<int> temp;
+  int32_t reg;
 
   i = line.find('x', i) + 1;
 
@@ -54,6 +55,8 @@ static void __get_reg_num(const std::string &line, size_t &i, int32_t &reg) {
 
   reg = __get_num(temp, 10);
   temp.clear();
+
+  return reg;
 }
 
 static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
@@ -61,7 +64,7 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
   std::vector<int> temp;
   size_t i = 0;
 
-  __get_reg_num(line, i, r1);
+  r1 = __get_reg_num(line, i);
 
   while (!isdigit(line[i])) i++;
 
@@ -90,9 +93,10 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
   temp.clear();
 }
 
-static void __get_last_num(const std::string &line, size_t i, int32_t &imm,
+static int32_t __get_last_num(const std::string &line, size_t i,
                            const int n_bits) {
   std::vector<int> temp;
+  int32_t imm;
   int flag = 0;
   int is_neg = 0;
 
@@ -103,7 +107,7 @@ static void __get_last_num(const std::string &line, size_t i, int32_t &imm,
     i++;
   }
 
-  while (i < line.size() && line[i] != ' ' && line[i] != '#') {
+  while (i < line.size() && line[i] != ' ') {
     temp.push_back(line[i] - '0');
     if (line[i] == 'x') flag = 1;
     i++;
@@ -113,6 +117,8 @@ static void __get_last_num(const std::string &line, size_t i, int32_t &imm,
   if (is_neg) imm = __get_inver(imm, n_bits);
 
   temp.clear();
+
+  return imm;
 }
 
 static void __fill_bin(const std::string &format_line, size_t &i,
@@ -148,9 +154,9 @@ static void __i_type(const int index, const std::string &format_line) {
 
   if (!open_bracket) {
     i = 1;
-    __get_reg_num(line, i, rd);
-    __get_reg_num(line, i, rs1);
-    __get_last_num(line, i, imm, 12);
+    rd = __get_reg_num(line, i);
+    rs1 = __get_reg_num(line, i);
+    imm = __get_last_num(line, i, 12);
   } else {
     __get_dst_src(line, rd, imm, rs1);
   }
@@ -195,8 +201,8 @@ static void __r_type(const int index, const std::string &format_line) {
 
   // Start at 1 to get rid of x from xor instruction
   i = 1;
-  __get_reg_num(line, i, rd);
-  __get_reg_num(line, i, rs1);
+  rd = __get_reg_num(line, i);
+  rs1 = __get_reg_num(line, i);
 
   i = line.find('x', i) + 1;
 
@@ -253,7 +259,7 @@ static void __uj_type(const int index, const std::string &format_line) {
   size_t i, j;
 
   i = 0;
-  __get_reg_num(line, i, rd);
+  rd = __get_reg_num(line, i);
   __get_label_imm(index, i, imm, 20);
 
   i = format_line.find(' ') + 1;
@@ -290,8 +296,8 @@ static void __u_type(const int index, const std::string &format_line) {
   int32_t rd, imm;
   size_t i = 0;
 
-  __get_reg_num(line, i, rd);
-  __get_last_num(line, i, imm, 20);
+  rd = __get_reg_num(line, i);
+  imm = __get_last_num(line, i, 20);
 
   i = format_line.find(' ') + 1;
 
@@ -311,8 +317,8 @@ static void __sb_type(const int index, const std::string &format_line) {
   size_t i;
 
   i = 0;
-  __get_reg_num(line, i, rs1);
-  __get_reg_num(line, i, rs2);
+  rs1 = __get_reg_num(line, i);
+  rs2 = __get_reg_num(line, i);
   __get_label_imm(index, i, imm, 12);
 
   i = format_line.find(' ') + 1;
@@ -343,6 +349,30 @@ static void __type_number(const std::string ins, const int index,
   if (ins == "SB") __sb_type(index, format_line);
 }
 
+static std::string __get_token_after_label(const std::string &line, size_t j) {
+  j = line.find_first_not_of(' ', j);
+  return line.substr(j, line.find(' ', j) - j);
+}
+
+static inline int __is_label(const std::string &instr) {
+  return instr[instr.size() - 1] == ':';
+}
+
+static std::string __get_instr_format(const std::string &instr) {
+    const size_t n_instructions = formats.size();
+    std::string type;
+
+    for (size_t k = 0; k < n_instructions; k++) {
+      const std::string &format_line = formats[k];
+
+      type = format_line.substr(0, format_line.find(' '));
+
+      if (instr.compare(type) == 0) return format_line;
+    }
+    return std::string();
+}
+
+
 // To extract instruction type and process them independently
 static void __process(void) {
   size_t size = code.size();
@@ -355,28 +385,16 @@ static void __process(void) {
     j = line.find(' ');
     instr = line.substr(0, j);
 
-    size_t instr_size = instr.size();
-
-    if (instr[instr_size - 1] == ':' && line.size() > instr_size) {
-      j = line.find_first_not_of(' ', j);
-
+    if (__is_label(instr) && line.size() > instr.size()) {
       instr.clear();
-      instr = line.substr(j, line.find(' ', j) - j);
+      instr = __get_token_after_label(line, j);
     }
 
-    const size_t n_instructions = formats.size();
-    for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = formats[k];
-      std::string type;
+    std::string format = __get_instr_format(instr);
 
-      type = format_line.substr(0, format_line.find(' '));
+    if (!format.empty()) 
+      __type_number(format.substr(format.find_last_of(' ') + 1), i, format);
 
-      if (instr.compare(type) == 0) {
-        __type_number(format_line.substr(format_line.find_last_of(' ') + 1), i,
-                      formats[k]);
-        break;
-      }
-    }
     instr.clear();
   }
 }
@@ -452,9 +470,8 @@ static void __processla(const int index) {
 }
 
 // To process Load Word (lw) psudo command
-static void __processlw(const std::string type, const int index,
+static void __processlw(const std::string type, const std::string &line,
                         const int32_t pos) {
-  const std::string &line = codeinit[index];
   std::string s, labeladd;
   int32_t currentpc, temp1;
   int i;
@@ -478,148 +495,119 @@ static void __processlw(const std::string type, const int index,
   code.push_back(type + " x" + s + " " + labeladd + "(x" + s + ")");
 }
 
+static std::string __get_token(const std::string &line, size_t &j) {
+  std::string instr;
+
+  while (j < line.size() && line[j] != ' ') {
+    instr += line[j++];
+    if (j < line.size() && line[j] == ':') {
+      instr += line[j++];
+      break;
+    }
+  }
+
+  return instr;
+}
+
+static int __load_label(const std::string &line) {
+  std::string lab;
+  size_t j;
+
+  j = line.find_last_not_of(' ');
+  lab = line.substr(line.find_last_of(" ", j) + 1);
+
+  for (j = 0; j < datalabel.size(); j++) {
+    if (lab.compare(datalabel[j].name) == 0) {
+      return datalabel[j].position;
+    }
+  }
+
+  return -1;
+}
+
+static inline int is_load_instr(const std::string &instr) {
+  return (instr == "lw" || instr == "lb" || instr == "lhw");
+}
+
 // To expand all psudo instruction if present
 static void __shift(void) {
-  int n_code_lines = codeinit.size();
+  size_t n_code_lines = codeinit.size();
 
-  for (int i = 0; i < n_code_lines; i++) {
-    size_t j;
+  for (size_t i = 0; i < n_code_lines; i++) {
     std::string &line = codeinit[i];
     std::string instr;
+    size_t j;
     int start;
 
-    std::replace(line.begin(), line.end(), '\t', ' ');
-
     start = j = line.find_first_not_of(' ');
-
-    while (j < line.size() && line[j] != ' ') {
-      instr += line[j++];
-      if (j < line.size() && line[j] == ':') {
-        instr += line[j++];
-        break;
-      }
-    }
+    instr = __get_token(line, j);
 
     j = line.find_first_not_of(',', j);
 
-    size_t instr_size = instr.size();
-
-    if (instr[instr_size - 1] == ':' && line.size() > instr_size) {
-      instr.clear();
-
+    if (__is_label(instr) && line.size() > instr.size() + 1) {
       start = j = line.find_first_not_of(' ', j);
-      // instr = line.substr(j, line.find(' ', j) - j);
-      while (line[j] != ' ') instr += line[j++];
+
+      instr.clear();
+      instr = line.substr(j, line.find(' ', j) - j);
     }
 
     if (instr == "la") {
       __processla(i);
       continue;
-    } else if (instr == "lw" || instr == "lb" || instr == "lhw") {
-      std::string lab;
+    } else if (is_load_instr(instr)) {
+      int32_t pos;
 
-      j = line.find_last_not_of(' ', line.size() - 1);
-
-      lab = line.substr(line.find_last_of(" ", j) + 1);
-
-      int flag = 1;
-      for (j = 0; j < datalabel.size(); j++) {
-        if (lab.compare(datalabel[j].name) == 0) {
-          flag = 0;
-          __processlw(instr, i, datalabel[j].position);
-          break;
-        }
-      }
-
-      if (!flag) continue;
-    }
-
-    const size_t n_instructions = formats.size();
-    for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = formats[k];
-      std::string type;
-
-      type = format_line.substr(0, format_line.find(' '));
-
-      if (instr.compare(type) == 0) {
-        code.push_back(line.substr(start, line.size()));
-        break;
+      if ((pos = __load_label(line)) != -1) {
+        __processlw(instr, line, pos);
+        continue;
       }
     }
+
+    std::string format = __get_instr_format(instr);
+
+    if (!format.empty()) 
+      code.push_back(line.substr(start, line.size()));
+
+    instr.clear();
   }
 }
 
 // To extract all the labels from code
 static void __setlabel(void) {
-  size_t siz = codeinit.size();
+  size_t n_code_lines = codeinit.size();
   int count = -1;
 
-  for (size_t i = 0; i < siz; i++) {
+  for (size_t i = 0; i < n_code_lines; i++) {
     const std::string &line = codeinit[i];
     std::string instr;
     size_t j;
 
     j = line.find_first_not_of(' ');
+    instr = __get_token(line, j);
 
-    while (j < line.size() && line[j] != ' ') {
-      instr += line[j++];
-
-      if (j < line.size() && line[j] == ':') {
-        instr += line[j++];
-        break;
-      }
-    }
-
-    size_t instr_size = instr.size();
-    if (instr[instr_size - 1] == ':') {
+    if (__is_label(instr)) {
       labels.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
-    }
-
-    if (instr[instr_size - 1] == ':' && instr_size < line.size()) {
-      j = line.find_first_not_of(' ', j);
-      instr.clear();
-
-      // instr = line.substr(j, line.find(' ', j) - j);
-      while (j < line.size() && line[j] != ' ') {
-        instr += line[j++];
+      if (line.size() > instr.size() + 1) {
+        instr.clear();
+        instr = __get_token_after_label(line, j);
       }
     }
 
     if (instr == "la") {
       count += 2;
       continue;
-    } else if (instr == "lw" || instr == "lb" || instr == "lhw") {
-      std::string lab;
-
-      j = line.find_last_not_of(' ', line.size() - 1);
-
-      lab = line.substr(line.find_last_of(' ', j) + 1, j + 1);
-
-      int flag = 1;
-
-      for (j = 0; j < datalabel.size(); j++) {
-        if (lab.compare(datalabel[j].name) == 0) {
-          flag = 0;
-          count += 2;
-          break;
-        }
+    } else if (is_load_instr(instr)) {
+      if (__load_label(line) != -1) {
+        count += 2;
+        continue;
       }
-
-      if (!flag) continue;
     }
 
-    const size_t n_instructions = formats.size();
-    for (size_t k = 0; k < n_instructions; k++) {
-      const std::string &format_line = formats[k];
-      std::string type;
-
-      type = format_line.substr(0, format_line.find(' '));
-
-      if (instr.compare(type) == 0) {
+    std::string format = __get_instr_format(instr);
+    if (!format.empty()) 
         count++;
-        break;
-      }
-    }
+
+    instr.clear();
   }
 }
 
