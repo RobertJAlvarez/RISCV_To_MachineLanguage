@@ -1,8 +1,6 @@
 #include <fstream>   // std::ifstream std::ofstream
-#include <iostream>  // std::endl
+#include <iostream>  // std::endl, std::cerr
 #include <sstream>   // std::stringstream
-#include <string>    // std::string
-#include <vector>    // std::vector
 
 #include "helper.h"
 #include "process_files.h"
