@@ -4,11 +4,16 @@
 
 #include "helper.h"
 #include "process_files.h"
+#include "pre_process_code.h"
 
 // Initial Size of Data Memory
 const int32_t DATA_MEMO_SIZE = 200;
 std::string datamemory[DATA_MEMO_SIZE];
 
+// From main.cpp
+extern std::vector<std::string> formats;
+
+// Global variable to keep mc_file open as long as possible
 static std::ofstream mc_file;
 
 void __write_mc(const int32_t binary[], int32_t &pc) {

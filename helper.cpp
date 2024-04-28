@@ -1,5 +1,7 @@
 #include "helper.h"
 
+extern std::vector<std::string> formats;
+
 uint32_t __get_inver(int32_t num, const int n_bits) {
   // Create a mask with the first n bits set to 1
   int32_t mask = (n_bits >= 32 ? 0 : 1 << n_bits) - 1;
@@ -28,4 +30,22 @@ int32_t __get_num(const std::vector<int> temp, const int32_t giv) {
   }
 
   return ans;
+}
+
+int __is_label(const std::string &instr) {
+  return instr[instr.size() - 1] == ':';
+}
+
+std::string __get_instr_format(const std::string &instr) {
+  const size_t n_instructions = formats.size();
+  std::string type;
+
+  for (size_t k = 0; k < n_instructions; k++) {
+    const std::string &format_line = formats[k];
+
+    type = format_line.substr(0, format_line.find(' '));
+
+    if (instr.compare(type) == 0) return format_line;
+  }
+  return std::string();
 }
