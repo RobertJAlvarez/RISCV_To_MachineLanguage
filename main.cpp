@@ -1,6 +1,5 @@
 #include <iostream>  // std::endl, std::cerr
 #include <sstream>   // std::stringstream
-#include <utility>   // std::pair
 
 #include "helper.h"
 #include "pre_process_code.h"
@@ -342,16 +341,13 @@ static std::vector<std::string> tokenize(const std::string &str) {
 }
 
 static void __set_format_bin(const std::vector<std::string> &tokens) {
-  static std::vector<std::pair<int, int> > ranges;
-
-  if (ranges.empty()) {
-    ranges.push_back(std::make_pair(25, ARCH_SIZE));
-    ranges.push_back(std::make_pair(17, 20));
-    ranges.push_back(std::make_pair(0, 7));
-  }
+  const static struct {
+    const int start;
+    const int end;
+  } ranges[] = {{25, ARCH_SIZE}, {17, 20}, {0,7}};
 
   for (size_t i = 1; i < tokens.size() - 1; i++) {
-    __fill_bin(tokens[i], ranges[i - 1].first, ranges[i - 1].second);
+    __fill_bin(tokens[i], ranges[i - 1].start, ranges[i - 1].end);
   }
 }
 
