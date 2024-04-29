@@ -1,7 +1,7 @@
 #include <vector>
 
-#include "pre_process_code.h"
 #include "helper.h"
+#include "pre_process_code.h"
 
 const int32_t START = ((int32_t)(1 << 28));
 
@@ -13,7 +13,7 @@ std::vector<seg> datalabel;
 
 /* To process Load Word (lw) pseudo instruction. */
 static void __process_lw(const std::string type, const std::string &line,
-                        const int32_t pos) {
+                         const int32_t pos) {
   std::string s, labeladd;
   int32_t currentpc, temp1;
   int i;

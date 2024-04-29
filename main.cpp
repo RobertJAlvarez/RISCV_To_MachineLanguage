@@ -1,10 +1,10 @@
-#include <utility>   // std::pair
-#include <sstream>   // std::stringstream
 #include <iostream>  // std::endl, std::cerr
+#include <sstream>   // std::stringstream
+#include <utility>   // std::pair
 
 #include "helper.h"
-#include "process_files.h"
 #include "pre_process_code.h"
+#include "process_files.h"
 
 std::vector<std::string> code;
 std::vector<std::string> formats;
@@ -115,8 +115,8 @@ static int32_t __get_last_num(const std::string &line, size_t i,
   return imm;
 }
 
-static void __fill_bin(const std::string &format,
-                       const int start, const int end) {
+static void __fill_bin(const std::string &format, const int start,
+                       const int end) {
   int i = 0;
   for (int j = start; j < end; j++) {
     binary[j] = format[i++] - '0';
@@ -131,17 +131,11 @@ static void __fill_bin(int32_t &num, const int start, const int end) {
   }
 }
 
-static inline void __fill_bin_rd(int32_t rd) {
-  __fill_bin(rd, 24, 19);
-}
+static inline void __fill_bin_rd(int32_t rd) { __fill_bin(rd, 24, 19); }
 
-static inline void __fill_bin_rs1(int32_t rs1) {
-  __fill_bin(rs1, 16, 11);
-}
+static inline void __fill_bin_rs1(int32_t rs1) { __fill_bin(rs1, 16, 11); }
 
-static inline void __fill_bin_rs2(int32_t rs2) {
-  __fill_bin(rs2, 11, 6);
-}
+static inline void __fill_bin_rs2(int32_t rs2) { __fill_bin(rs2, 11, 6); }
 
 static void __i_type(const int index) {
   const std::string &line = code[index];
@@ -232,8 +226,7 @@ static int __get_label(const std::string label, const int ind) {
   return -1;
 }
 
-static int32_t __get_label_imm(const int index, size_t &i,
-                            const int n_bits) {
+static int32_t __get_label_imm(const int index, size_t &i, const int n_bits) {
   const std::string &line = code[index];
   std::string label;
   int32_t imm;
@@ -336,7 +329,7 @@ static std::string __get_token_after_label(const std::string &line, size_t j) {
   return line.substr(j, line.find(' ', j) - j);
 }
 
-static std::vector<std::string> tokenize(const std::string& str) {
+static std::vector<std::string> tokenize(const std::string &str) {
   std::vector<std::string> tokens;
   std::istringstream iss(str);
   std::string token;
@@ -358,7 +351,7 @@ static void __set_format_bin(const std::vector<std::string> &tokens) {
   }
 
   for (size_t i = 1; i < tokens.size() - 1; i++) {
-    __fill_bin(tokens[i], ranges[i-1].first , ranges[i-1].second);
+    __fill_bin(tokens[i], ranges[i - 1].first, ranges[i - 1].second);
   }
 }
 

@@ -2,6 +2,7 @@
 #define __PROCESS_CODE_H__
 
 #include <stdint.h>
+
 #include <string>
 
 extern const int32_t START;
