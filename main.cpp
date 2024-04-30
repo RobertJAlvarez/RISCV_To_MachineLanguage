@@ -212,7 +212,6 @@ static void __r_type(const int index) {
   __write_mc(binary, pc);
 }
 
-// To get aint32_t the labelss used in Code
 static int __get_label(const std::string label, const int ind) {
   int sizelabel = labels.size();
 
@@ -323,12 +322,7 @@ static void __process_instr(const std::string ins, const int index) {
   if (ins == "SB") __sb_type(index);
 }
 
-static std::string __get_token_after_label(const std::string &line, size_t j) {
-  j = line.find_first_not_of(' ', j);
-  return line.substr(j, line.find(' ', j) - j);
-}
-
-static std::vector<std::string> tokenize(const std::string &str) {
+static std::vector<std::string> __tokenize(const std::string &str) {
   std::vector<std::string> tokens;
   std::istringstream iss(str);
   std::string token;
@@ -363,15 +357,10 @@ static void __process_code(void) {
     j = line.find(' ');
     instr = line.substr(0, j);
 
-    if (__is_label(instr) && line.size() > instr.size()) {
-      instr.clear();
-      instr = __get_token_after_label(line, j);
-    }
-
     std::string format = __get_instr_format(instr);
 
     if (!format.empty()) {
-      const std::vector<std::string> tokens = tokenize(format);
+      const std::vector<std::string> tokens = __tokenize(format);
       __set_format_bin(tokens);
       __process_instr(tokens.back(), i);
     }
@@ -394,6 +383,8 @@ int main(int argc, char *argv[]) {
   process_files(argv[1], format_file, mc_file);
 
   pre_process_code();
+
+  // for (const std::string &line : code) std::cout << line << std::endl;
 
   __process_code();
 
