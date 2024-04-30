@@ -384,8 +384,6 @@ int main(int argc, char *argv[]) {
 
   pre_process_code();
 
-  // for (const std::string &line : code) std::cout << line << std::endl;
-
   __process_code();
 
   save_mc();
