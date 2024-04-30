@@ -17,6 +17,4 @@ int32_t __get_num(const std::vector<int> temp, const int32_t giv);
 
 std::string __get_instr_format(const std::string &instr);
 
-int __is_label(const std::string &instr);
-
 #endif

@@ -32,10 +32,6 @@ int32_t __get_num(const std::vector<int> temp, const int32_t giv) {
   return ans;
 }
 
-int __is_label(const std::string &instr) {
-  return instr[instr.size() - 1] == ':';
-}
-
 std::string __get_instr_format(const std::string &instr) {
   const size_t n_instructions = formats.size();
   std::string type;
@@ -47,5 +43,6 @@ std::string __get_instr_format(const std::string &instr) {
 
     if (instr.compare(type) == 0) return format_line;
   }
+
   return std::string();
 }
