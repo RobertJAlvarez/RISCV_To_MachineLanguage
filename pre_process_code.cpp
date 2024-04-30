@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <iostream> // TODO: Delete print cases
 #include <vector>
 
 #include "helper.h"
@@ -20,10 +22,10 @@ static void __process_lw(const std::string type, const std::string &line,
 
   i = line.find('x') + 1;
 
-  s = line.substr(i, line.find(" ", i) - i);
-
-  currentpc = pos - (code.size() * 4 + START);
+  s = line.substr(i, line.find_first_of(" ,", i) - i);
   code.push_back("auipc x" + s + " 65536");
+
+  currentpc = pos - (code.size() * 4 - 4 + START);
   temp1 = abs(currentpc);
 
   while (temp1 != 0) {
@@ -46,9 +48,9 @@ static void __process_la(const int index) {
 
   i = line.find('x') + 1;
 
-  s = line.substr(i, line.find_first_of(" ", i) - i);
-
+  s = line.substr(i, line.find_first_of(" ,", i) - i);
   code.push_back("auipc x" + s + " 65536");
+
   currentpc = (code.size() * 4 - 4) + START;
 
   i = line.find(' ', i);
@@ -80,8 +82,7 @@ static int __load_label(const std::string &line) {
   std::string lab;
   size_t j;
 
-  j = line.find_last_not_of(' ');
-  lab = line.substr(line.find_last_of(" ", j) + 1);
+  lab = line.substr(line.find_last_of(" ,") + 1);
 
   for (j = 0; j < datalabel.size(); j++) {
     if (lab.compare(datalabel[j].name) == 0) {
@@ -92,18 +93,46 @@ static int __load_label(const std::string &line) {
   return -1;
 }
 
-static inline int is_load_instr(const std::string &instr) {
+static inline int __is_load_instr(const std::string &instr) {
   return (instr == "lw" || instr == "lb" || instr == "lhw");
 }
 
-/* To convert Stack Pointer(sp) to x2. */
-static std::string __change_sp(const std::string &org_line) {
-  std::string line = org_line;
-  size_t pos = 0;
+/* Convert registers from their ABI Name to their register number. For example:
+ * Register | ABI Name
+ * x2       | sp
+ * x12      | a2
+ */
+static std::string __change_reg_names(const std::string &org_line) {
+  const static struct {
+    const std::string reg_name;
+    const std::string ABI_name;
+  } conversion[] = {
+      {"x0", "zero"}, {"x1", "RA"},  {"x2", "SP"},  {"x3", "GP"},
+      {"x4", "TP"},   {"x5", "T0"},  {"x6", "T1"},  {"x7", "T2"},
+      {"x8", "FP"},   {"x8", "S0"},  {"x9", "S1"},  {"x10", "A0"},
+      {"x11", "A1"},  {"x12", "A2"}, {"x13", "A3"}, {"x14", "A4"},
+      {"x15", "A5"},  {"x16", "A6"}, {"x17", "A7"}, {"x18", "S2"},
+      {"x19", "S3"},  {"x20", "S4"}, {"x21", "S5"}, {"x22", "S6"},
+      {"x23", "S7"},  {"x24", "S8"}, {"x25", "S9"}, {"x26", "S10"},
+      {"x27", "S11"}, {"x28", "T3"}, {"x29", "T4"}, {"x30", "T5"},
+      {"x31", "T6"}};
 
-  while ((pos = line.find("sp", pos)) != std::string::npos) {
-    line.replace(pos, 2, "x2");
-    pos += 2;
+  std::string low_case;
+  std::string line = org_line;
+  size_t pos;
+
+  for (size_t i = 1; i < sizeof(conversion) / sizeof(conversion[0]); i++) {
+    pos = ((size_t) 0);
+    low_case = conversion[i].ABI_name;
+    std::transform(low_case.begin(), low_case.end(), low_case.begin(), ::tolower);
+
+    pos = std::min((size_t) line.find(conversion[i].ABI_name, pos), (size_t) line.find(low_case, pos));
+
+    while (pos != std::string::npos) {
+      line.replace(pos, conversion[i].ABI_name.length(), conversion[i].reg_name);
+      pos += conversion[i].reg_name.length();
+      pos = std::min((size_t) line.find(conversion[i].ABI_name, pos), (size_t) line.find(low_case, pos));
+    }
   }
 
   return line;
@@ -153,7 +182,7 @@ void pre_process_code(void) {
       __process_la(i);
       count += 2;
       continue;
-    } else if (is_load_instr(instr)) {
+    } else if (__is_load_instr(instr)) {
       int32_t pos;
 
       if ((pos = __load_label(line)) != -1) {
@@ -166,7 +195,7 @@ void pre_process_code(void) {
     std::string format = __get_instr_format(instr);
 
     if (!format.empty()) {
-      code.push_back(__change_sp(line).substr(start));
+      code.push_back(__change_reg_names(line).substr(start));
       count++;
     }
 
