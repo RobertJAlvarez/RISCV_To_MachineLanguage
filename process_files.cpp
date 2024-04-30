@@ -64,7 +64,7 @@ static std::string __convert(const std::string s, const int len) {
   int is_neg = 0;
 
   // Convert input s into a number
-  if (s.find_first_of("xX") == std::string::npos) {
+  if (s.find_first_of("x") == std::string::npos) {
     // If input is not in hex
     if (s[0] == '-') {
       is_neg = 1;
@@ -119,40 +119,31 @@ static void __read_data(std::ifstream &file) {
   std::string word;
   std::string name, type;
   std::vector<std::string> value;
-  int index;
-  int flag;
+  size_t i;
 
   while (!file.eof()) {
     file >> word;
     if (word == ".text") break;
 
-    flag = 0;
-
-    for (size_t i = 0; i < word.size() - 1; i++) {
-      if (word[i] == ':' && word[i + 1] == '.') {
-        flag = 1;
-        index = i;
+    // If there is a label
+    if ((i = word.find(':')) != std::string::npos) {
+      // Get label name
+      name = word.substr(0, i);
+      // Find if data is .word, .byte, etc.
+      if ((i = word.find('.')) != std::string::npos) {
+        type = word.substr(i+1);
+      } else {
+        file >> type;
+        type.erase(type.begin());
       }
     }
 
-    if (flag == 1) {
-      name = "\0";
-      type = "\0";
-      for (int i = 0; i < index; i++) name += word[i];
-      for (size_t i = index + 2; i < word.size(); i++) type += word[i];
-    } else {
-      word.erase(word.end() - 1);
-      name = word;
-      file >> word;
-      word.erase(word.begin());
-      type = word;
-    }
-
+    // Get data numbers to load
     getline(file, word);
-
     std::stringstream ss(word);
     while (ss >> word) value.push_back(word);
 
+    // Save data numbers
     __save_data_entry(name, type, value);
 
     value.clear();
