@@ -107,34 +107,28 @@ static std::string __change_reg_names(std::string line) {
     const std::string reg_name;
     const std::string ABI_name;
   } conversion[] = {
-      {"x0", "zero"}, {"x1", "RA"},  {"x2", "SP"},  {"x3", "GP"},
-      {"x4", "TP"},   {"x5", "T0"},  {"x6", "T1"},  {"x7", "T2"},
-      {"x8", "FP"},   {"x8", "S0"},  {"x9", "S1"},  {"x10", "A0"},
-      {"x11", "A1"},  {"x12", "A2"}, {"x13", "A3"}, {"x14", "A4"},
-      {"x15", "A5"},  {"x16", "A6"}, {"x17", "A7"}, {"x18", "S2"},
-      {"x19", "S3"},  {"x20", "S4"}, {"x21", "S5"}, {"x22", "S6"},
-      {"x23", "S7"},  {"x24", "S8"}, {"x25", "S9"}, {"x26", "S10"},
-      {"x27", "S11"}, {"x28", "T3"}, {"x29", "T4"}, {"x30", "T5"},
-      {"x31", "T6"}};
+      {"x0", "zero"}, {"x1", "ra"},  {"x2", "sp"},  {"x3", "gp"},
+      {"x4", "tp"},   {"x5", "t0"},  {"x6", "t1"},  {"x7", "t2"},
+      {"x8", "fp"},   {"x8", "s0"},  {"x9", "s1"},  {"x10", "a0"},
+      {"x11", "a1"},  {"x12", "a2"}, {"x13", "a3"}, {"x14", "a4"},
+      {"x15", "a5"},  {"x16", "a6"}, {"x17", "a7"}, {"x18", "s2"},
+      {"x19", "s3"},  {"x20", "s4"}, {"x21", "s5"}, {"x22", "s6"},
+      {"x23", "s7"},  {"x24", "s8"}, {"x25", "s9"}, {"x26", "s10"},
+      {"x27", "s11"}, {"x28", "t3"}, {"x29", "t4"}, {"x30", "t5"},
+      {"x31", "t6"}};
 
-  std::string low_case;
   size_t pos;
 
   for (size_t i = 1; i < sizeof(conversion) / sizeof(conversion[0]); i++) {
     pos = ((size_t)0);
-    low_case = conversion[i].ABI_name;
-    std::transform(low_case.begin(), low_case.end(), low_case.begin(),
-                   ::tolower);
 
-    pos = std::min((size_t)line.find(conversion[i].ABI_name, pos),
-                   (size_t)line.find(low_case, pos));
+    pos = line.find(conversion[i].ABI_name, pos);
 
     while (pos != std::string::npos) {
       line.replace(pos, conversion[i].ABI_name.length(),
                    conversion[i].reg_name);
       pos += conversion[i].reg_name.length();
-      pos = std::min((size_t)line.find(conversion[i].ABI_name, pos),
-                     (size_t)line.find(low_case, pos));
+      pos = line.find(conversion[i].ABI_name, pos);
     }
   }
 

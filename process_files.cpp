@@ -204,6 +204,9 @@ static void __read_text(std::ifstream &file) {
       // Trim lines
       trim(line);
 
+      // Convert to lowercase
+      std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+
       codeinit.push_back(line);
     }
   }
