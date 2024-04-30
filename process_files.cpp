@@ -1,6 +1,7 @@
-#include <fstream>   // std::ifstream std::ofstream
-#include <iostream>  // std::endl, std::cerr
-#include <sstream>   // std::stringstream
+#include <functional> // std::ptr_fun, std::not1
+#include <fstream>    // std::ifstream std::ofstream
+#include <iostream>   // std::endl, std::cerr
+#include <sstream>    // std::stringstream
 
 #include "helper.h"
 #include "pre_process_code.h"
@@ -158,8 +159,27 @@ static void __read_data(std::ifstream &file) {
   }
 }
 
+// trim from start (in place)
+inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
+// trim from end (in place)
+inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// trim from both ends (in place)
+inline void trim(std::string &s) {
+    rtrim(s);
+    ltrim(s);
+}
+
 static void __read_text(std::ifstream &file) {
   std::string line;
+  size_t i;
   int flag = 0;
 
   while (getline(file, line)) {
@@ -168,8 +188,19 @@ static void __read_text(std::ifstream &file) {
       flag = 0;
       continue;
     }
+
     if (flag != 1) {
+      // Replace tabs for spaces
       std::replace(line.begin(), line.end(), '\t', ' ');
+
+      // Delete everything after a '#'
+      if ((i = line.find('#')) != std::string::npos) {
+        line.erase(line.begin()+i, line.end());
+      }
+
+      // Trim lines
+      trim(line);
+
       codeinit.push_back(line);
     }
   }
@@ -179,6 +210,7 @@ static int __read_assembly_file(const std::string &filename) {
   std::ifstream file;
   std::string word;
 
+  // Read data information
   file.open(filename);
   if (!file.is_open()) {
     std::cerr << "Error opening file." << std::endl;
@@ -196,6 +228,7 @@ static int __read_assembly_file(const std::string &filename) {
 
   file.close();
 
+  // Read text information
   file.open(filename);
   if (!file.is_open()) {
     std::cerr << "Error opening file." << std::endl;
@@ -219,6 +252,7 @@ int process_files(const std::string &assembly_file,
   // Clear data inside MC_file
   mc_file.open(mc_filename, std::ofstream::out | std::ofstream::trunc);
 
+  // Read all supported instructions
   __formats(formats_file);
 
   return 0;
@@ -227,8 +261,6 @@ int process_files(const std::string &assembly_file,
 int save_mc(void) {
   const std::string s =
       "-------------------------------------------------------";
-
-  // file.open(MC_file, std::ios_base::app);
 
   mc_file << s << std::endl;
 
