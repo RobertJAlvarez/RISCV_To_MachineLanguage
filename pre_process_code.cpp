@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <iostream> // TODO: Delete print cases
 #include <vector>
 
 #include "helper.h"
