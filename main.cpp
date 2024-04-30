@@ -344,7 +344,7 @@ static void __set_format_bin(const std::vector<std::string> &tokens) {
   const static struct {
     const int start;
     const int end;
-  } ranges[] = {{25, ARCH_SIZE}, {17, 20}, {0,7}};
+  } ranges[] = {{25, ARCH_SIZE}, {17, 20}, {0, 7}};
 
   for (size_t i = 1; i < tokens.size() - 1; i++) {
     __fill_bin(tokens[i], ranges[i - 1].start, ranges[i - 1].end);
@@ -394,7 +394,10 @@ int main(int argc, char *argv[]) {
   process_files(argv[1], format_file, mc_file);
 
   pre_process_code();
+
   __process_code();
 
   save_mc();
+
+  return 0;
 }
