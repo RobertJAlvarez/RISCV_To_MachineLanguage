@@ -41,7 +41,7 @@ static int32_t __get_reg_num(const std::string &line, size_t &i) {
 
   i = line.find('x', i) + 1;
 
-  while (line[i] != ' ' && line[i] != ',') {
+  while (line[i] != ' ') {
     temp.push_back(line[i] - '0');
     i++;
   }
@@ -93,7 +93,7 @@ static int32_t __get_last_num(const std::string &line, size_t i,
   int flag = 0;
   int is_neg = 0;
 
-  i = line.find_first_not_of(" ,", i);
+  i = line.find_first_not_of(' ', i);
 
   if (line[i] == '-') {
     is_neg = 1;
@@ -229,7 +229,7 @@ static int32_t __get_label_imm(const int index, size_t &i, const int n_bits) {
   std::string label;
   int32_t imm;
 
-  i = line.find_first_not_of(" ,", i);
+  i = line.find_first_not_of(' ', i);
 
   label = line.substr(i, line.find(' ', i));
   imm = __get_label(label, index);

@@ -190,8 +190,9 @@ static void __read_text(std::ifstream &file) {
     }
 
     if (flag != 1) {
-      // Replace tabs for spaces
+      // Replace tabs and comas for spaces
       std::replace(line.begin(), line.end(), '\t', ' ');
+      std::replace(line.begin(), line.end(), ',', ' ');
 
       // Delete everything after a '#'
       if ((i = line.find('#')) != std::string::npos) {

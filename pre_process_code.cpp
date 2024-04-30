@@ -22,7 +22,7 @@ static void __process_lw(const std::string type, const std::string &line,
 
   i = line.find('x') + 1;
 
-  s = line.substr(i, line.find_first_of(" ,", i) - i);
+  s = line.substr(i, line.find_first_of(' ', i) - i);
   code.push_back("auipc x" + s + " 65536");
 
   currentpc = pos - (code.size() * 4 - 4 + START);
@@ -48,7 +48,7 @@ static void __process_la(const int index) {
 
   i = line.find('x') + 1;
 
-  s = line.substr(i, line.find_first_of(" ,", i) - i);
+  s = line.substr(i, line.find_first_of(' ', i) - i);
   code.push_back("auipc x" + s + " 65536");
 
   currentpc = (code.size() * 4 - 4) + START;
@@ -82,7 +82,7 @@ static int __label_position(const std::string &line) {
   std::string lab;
   size_t j;
 
-  lab = line.substr(line.find_last_of(" ,") + 1);
+  lab = line.substr(line.find_last_of(' ') + 1);
 
   for (j = 0; j < datalabel.size(); j++) {
     if (lab.compare(datalabel[j].name) == 0) {
@@ -154,12 +154,12 @@ void pre_process_code(void) {
       // If there is no instruction after label, go to next line
       if (line.size() == j) continue;
       // Otherwise, get where instruction starts
-      start = j = line.find_first_not_of(" ,", j);
+      start = j = line.find_first_not_of(' ', j);
     } else {
       j = 0;
     }
 
-    instr = line.substr(j, line.find_first_of(" ,", j) - j);
+    instr = line.substr(j, line.find_first_of(' ', j) - j);
 
     if (instr == "la") {
       __process_la(i);
