@@ -62,15 +62,15 @@ static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
   while (!isdigit(line[i])) i++;
 
   int is_neg = (i - 1 >= 0 && line[i - 1] == '-' ? 1 : 0);
-  int flag = 0;
+  int is_hex = 0;
 
   while (line[i] != '(') {
     temp.push_back(line[i] - '0');
-    if (line[i] == 'x') flag = 1;
+    if (line[i] == 'x') is_hex = 1;
     i++;
   }
 
-  imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
+  imm = (is_hex == 0 ? __get_num(temp, 10) : __get_hex(temp));
   temp.clear();
 
   if (is_neg) imm = __get_inver(imm, 12);
@@ -90,7 +90,7 @@ static int32_t __get_last_num(const std::string &line, size_t i,
                               const int n_bits) {
   std::vector<int> temp;
   int32_t imm;
-  int flag = 0;
+  int is_hex = 0;
   int is_neg = 0;
 
   i = line.find_first_not_of(' ', i);
@@ -102,11 +102,11 @@ static int32_t __get_last_num(const std::string &line, size_t i,
 
   while (i < line.size() && line[i] != ' ') {
     temp.push_back(line[i] - '0');
-    if (line[i] == 'x') flag = 1;
+    if (line[i] == 'x') is_hex = 1;
     i++;
   }
 
-  imm = (flag == 0 ? __get_num(temp, 10) : __get_hex(temp));
+  imm = (is_hex == 0 ? __get_num(temp, 10) : __get_hex(temp));
   if (is_neg) imm = __get_inver(imm, n_bits);
 
   temp.clear();
@@ -142,7 +142,7 @@ static void __i_type(const int index) {
   int32_t rd, rs1, imm;
   size_t i;
 
-  i = line.find_first_of("(#");
+  i = line.find_first_of('(');
 
   if ((i != std::string::npos) && (line[i] == '(')) {
     __get_dst_src(line, rd, imm, rs1);
@@ -166,7 +166,7 @@ static void __s_type(const int index) {
   int32_t rs1, rs2, imm;
   size_t i;
 
-  i = line.find_first_of("(#");
+  i = line.find_first_of('(');
 
   if ((i != std::string::npos) && (line[i] == '(')) {
     __get_dst_src(line, rs2, imm, rs1);
