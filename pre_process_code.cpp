@@ -1,4 +1,3 @@
-#include <iostream>
 #include <algorithm>
 #include <vector>
 
@@ -94,7 +93,8 @@ static int __label_position(const std::string &line) {
 }
 
 static inline int __is_load_instr(const std::string &instr) {
-  return (instr == "lw" || instr == "lb" || instr == "lhw");
+  return (instr == "lw" || instr == "lb" || instr == "lhw") ||
+         (instr == "LW" || instr == "LB" || instr == "LHW");
 }
 
 /* Convert registers from their ABI Name to their register number. For example:
@@ -121,16 +121,20 @@ static std::string __change_reg_names(std::string line) {
   size_t pos;
 
   for (size_t i = 1; i < sizeof(conversion) / sizeof(conversion[0]); i++) {
-    pos = ((size_t) 0);
+    pos = ((size_t)0);
     low_case = conversion[i].ABI_name;
-    std::transform(low_case.begin(), low_case.end(), low_case.begin(), ::tolower);
+    std::transform(low_case.begin(), low_case.end(), low_case.begin(),
+                   ::tolower);
 
-    pos = std::min((size_t) line.find(conversion[i].ABI_name, pos), (size_t) line.find(low_case, pos));
+    pos = std::min((size_t)line.find(conversion[i].ABI_name, pos),
+                   (size_t)line.find(low_case, pos));
 
     while (pos != std::string::npos) {
-      line.replace(pos, conversion[i].ABI_name.length(), conversion[i].reg_name);
+      line.replace(pos, conversion[i].ABI_name.length(),
+                   conversion[i].reg_name);
       pos += conversion[i].reg_name.length();
-      pos = std::min((size_t) line.find(conversion[i].ABI_name, pos), (size_t) line.find(low_case, pos));
+      pos = std::min((size_t)line.find(conversion[i].ABI_name, pos),
+                     (size_t)line.find(low_case, pos));
     }
   }
 
@@ -161,7 +165,7 @@ void pre_process_code(void) {
 
     instr = line.substr(j, line.find_first_of(' ', j) - j);
 
-    if (instr == "la") {
+    if ((instr == "la") || (instr == "LA")) {
       __process_la(i);
       count += 2;
       continue;

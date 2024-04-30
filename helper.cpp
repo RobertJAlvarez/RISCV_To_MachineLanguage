@@ -42,6 +42,9 @@ std::string __get_instr_format(const std::string &instr) {
     type = format_line.substr(0, format_line.find(' '));
 
     if (instr.compare(type) == 0) return format_line;
+
+    std::transform(type.begin(), type.end(), type.begin(), ::toupper);
+    if (instr.compare(type) == 0) return format_line;
   }
 
   return std::string();

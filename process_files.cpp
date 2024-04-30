@@ -1,7 +1,7 @@
-#include <functional> // std::ptr_fun, std::not1
-#include <fstream>    // std::ifstream std::ofstream
-#include <iostream>   // std::endl, std::cerr
-#include <sstream>    // std::stringstream
+#include <fstream>     // std::ifstream std::ofstream
+#include <functional>  // std::ptr_fun, std::not1
+#include <iostream>    // std::endl, std::cerr
+#include <sstream>     // std::stringstream
 
 #include "helper.h"
 #include "pre_process_code.h"
@@ -161,20 +161,23 @@ static void __read_data(std::ifstream &file) {
 
 // trim from start (in place)
 inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))));
+  s.erase(s.begin(),
+          std::find_if(s.begin(), s.end(),
+                       std::not1(std::ptr_fun<int, int>(std::isspace))));
 }
 
 // trim from end (in place)
 inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(),
-            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+  s.erase(std::find_if(s.rbegin(), s.rend(),
+                       std::not1(std::ptr_fun<int, int>(std::isspace)))
+              .base(),
+          s.end());
 }
 
 // trim from both ends (in place)
 inline void trim(std::string &s) {
-    rtrim(s);
-    ltrim(s);
+  rtrim(s);
+  ltrim(s);
 }
 
 static void __read_text(std::ifstream &file) {
@@ -195,9 +198,8 @@ static void __read_text(std::ifstream &file) {
       std::replace(line.begin(), line.end(), ',', ' ');
 
       // Delete everything after a '#'
-      if ((i = line.find('#')) != std::string::npos) {
-        line.erase(line.begin()+i, line.end());
-      }
+      if ((i = line.find('#')) != std::string::npos)
+        line.erase(line.begin() + i, line.end());
 
       // Trim lines
       trim(line);
