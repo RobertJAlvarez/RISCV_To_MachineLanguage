@@ -1,3 +1,4 @@
+#include <iostream>
 #include <algorithm>
 #include <vector>
 
@@ -77,7 +78,7 @@ static void __process_la(const int index) {
   code.push_back("addi x" + s + " x" + s + " " + labeladd);
 }
 
-static int __load_label(const std::string &line) {
+static int __label_position(const std::string &line) {
   std::string lab;
   size_t j;
 
@@ -101,7 +102,7 @@ static inline int __is_load_instr(const std::string &instr) {
  * x2       | sp
  * x12      | a2
  */
-static std::string __change_reg_names(const std::string &org_line) {
+static std::string __change_reg_names(std::string line) {
   const static struct {
     const std::string reg_name;
     const std::string ABI_name;
@@ -117,7 +118,6 @@ static std::string __change_reg_names(const std::string &org_line) {
       {"x31", "T6"}};
 
   std::string low_case;
-  std::string line = org_line;
   size_t pos;
 
   for (size_t i = 1; i < sizeof(conversion) / sizeof(conversion[0]); i++) {
@@ -137,21 +137,6 @@ static std::string __change_reg_names(const std::string &org_line) {
   return line;
 }
 
-static std::string __get_token(const std::string &line, size_t &j) {
-  std::string instr;
-
-  while (j < line.size() && line[j] != ' ') {
-    instr += line[j++];
-    if (j < line.size() && line[j] == ':') {
-      instr += line[j++];
-      break;
-    }
-  }
-
-  return instr;
-}
-
-/* Expand psudo-instruction and extract all the labels. */
 void pre_process_code(void) {
   size_t n_code_lines = codeinit.size();
   int count = -1;
@@ -159,23 +144,22 @@ void pre_process_code(void) {
   for (size_t i = 0; i < n_code_lines; i++) {
     const std::string &line = codeinit[i];
     std::string instr;
-    size_t j;
-    int start;
+    size_t j = 0;
+    int start = 0;
 
-    start = j = line.find_first_not_of(' ');
-    instr = __get_token(line, j);
-
-    j = line.find_first_not_of(',', j);
-
-    if (__is_label(instr)) {
-      labels.push_back((lab){instr.substr(0, instr.size() - 1), count + 1});
-      if (line.size() > instr.size() + 1) {
-        start = j = line.find_first_not_of(' ', j);
-
-        instr.clear();
-        instr = line.substr(j, line.find(' ', j) - j);
-      }
+    // If we have a label we push it to labels
+    if ((j = line.find(':')) != std::string::npos) {
+      labels.push_back((lab){line.substr(0, j), count + 1});
+      j++;  // Jump ':' character
+      // If there is no instruction after label, go to next line
+      if (line.size() == j) continue;
+      // Otherwise, get where instruction starts
+      start = j = line.find_first_not_of(" ,", j);
+    } else {
+      j = 0;
     }
+
+    instr = line.substr(j, line.find_first_of(" ,", j) - j);
 
     if (instr == "la") {
       __process_la(i);
@@ -184,7 +168,7 @@ void pre_process_code(void) {
     } else if (__is_load_instr(instr)) {
       int32_t pos;
 
-      if ((pos = __load_label(line)) != -1) {
+      if ((pos = __label_position(line)) != -1) {
         __process_lw(instr, line, pos);
         count += 2;
         continue;
