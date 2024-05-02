@@ -9,7 +9,7 @@
 
 // Initial Size of Data Memory
 const int32_t DATA_MEMO_SIZE = 200;
-std::string datamemory[DATA_MEMO_SIZE];
+static uint8_t datamemory[DATA_MEMO_SIZE];
 
 // From main.cpp
 extern std::vector<std::string> formats;
@@ -36,8 +36,6 @@ void __write_mc(const int32_t binary[], uint32_t &pc) {
     for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
     i--;
 
-    // vector<int> extracted(binary.begin() + i, binary.begin() + j + 4);
-
     mc_file << __int_to_hex(__get_num(t, 2));
   }
 
@@ -58,61 +56,29 @@ static int __formats(const std::string &filename) {
   return 0;
 }
 
-// To convert a number in std::string format to its Hexadecimal
-static std::string __convert(const std::string s, const int len) {
-  std::stringstream ss;
-  std::string ans;
-  int32_t num = 0;
-  int is_neg = 0;
-
-  // Convert input s into a number
-  if (s.find_first_of("x") == std::string::npos) {
-    // If input is not in hex
-    if (s[0] == '-') {
-      is_neg = 1;
-      num = std::atoi(s.substr(1).c_str());
-    } else {
-      num = std::atoi(s.c_str());
-    }
-  } else {
-    ss << std::hex << s;
-    ss >> num;
-    is_neg = num < 0;
-  }
-
-  if (is_neg) num = __get_inver(num, len * 4);
-
-  // Convert number into hexadecimal number using 8 character.
-  // For example, 20 = 00000014
-  for (int i = 0; i < len; i++) {
-    ans += __int_to_hex(((unsigned int) num) % 0x10);
-    num >>= 4;
-  }
-  reverse(ans.begin(), ans.end());
-
-  return ans;
-}
-
 static void __save_data_entry(const std::string name, const std::string type,
                               const std::vector<std::string> value) {
   static int pos = 0;
-  std::string s;
+  int32_t num;
+  int base, n_bytes;
 
   datalabel.push_back((seg){name, pos + START});
 
-  for (size_t j = 0; j < value.size(); j++) {
+  for (size_t i = 0; i < value.size(); i++) {
+    base = (value[i].find_first_of("x") == std::string::npos ? 10 : 16);
+    num = std::stoi(value[i], 0, base);
+
     if (type == "byte") {
-      datamemory[pos++] = __convert(value[j], 2);
+      n_bytes = 1;
     } else if (type == "word") {
-      s = __convert(value[j], 8);
-      for (int k = 6; k >= 0; k -= 2) {
-        datamemory[pos++] = s.substr(k, 2);
-      }
+      n_bytes = 4;
     } else if (type == "halfword") {
-      s = __convert(value[j], 4);
-      for (int k = 4; k >= 0; k -= 2) {
-        datamemory[pos++] = s.substr(k, 2);
-      }
+      n_bytes = 2;
+    }
+
+    for (int j = 0; j < n_bytes; j++) {
+      datamemory[pos++] = (uint8_t) (num & 0xFF);
+      num >>= 8;
     }
   }
 }
@@ -192,7 +158,7 @@ static void __read_text(std::ifstream &file) {
 
       // Delete everything after a '#'
       if ((i = line.find('#')) != std::string::npos)
-        line.erase(line.begin() + i, line.end());
+        line.erase(line.begin() + (long) i, line.end());
 
       // Trim lines
       trim(line);
@@ -244,7 +210,7 @@ static int __read_assembly_file(const std::string &filename) {
 int process_files(const std::string &assembly_file,
                   const std::string &formats_file,
                   const std::string &mc_filename) {
-  for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = "00";
+  for (int i = 0; i < DATA_MEMO_SIZE; i++) datamemory[i] = 0;
 
   if (__read_assembly_file(assembly_file)) return 1;
 
@@ -265,7 +231,7 @@ int save_mc(void) {
 
   // Print the Data Memory Part in Increasing Address Order
   for (int i = 0; i < DATA_MEMO_SIZE; i++) {
-    mc_file << datamemory[i] << " ";
+    mc_file << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << static_cast<int>(datamemory[i]) << " ";
     if ((i + 1) % 4 == 0) mc_file << std::endl;
   }
 
