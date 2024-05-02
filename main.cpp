@@ -35,66 +35,34 @@ static int32_t __get_hex(std::vector<int> &temp) {
   return ans;
 }
 
+static int32_t __get_num(const std::string &line, size_t &i, const size_t start) {
+  i = line.find_first_not_of("1234567890", start);
+  return std::stoi(line.substr(start, i - start));
+}
+
 static int32_t __get_reg_num(const std::string &line, size_t &i) {
-  std::vector<int> temp;
-  int32_t reg;
+  size_t start = line.find('x', i) + 1;
 
-  i = line.find('x', i) + 1;
-
-  // std::cout << "line: " << line << std::endl;
-  // std::cout << "i = " << std::to_string(i) << std::endl;
-
-  while (line[i] != ' ') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-
-  /*
-  for (const int &num : temp) {
-    std::cout << num;
-    std::cout << " ";
-  }
-  std::cout << std::endl;
-  */
-
-  reg = __get_num(temp, 10);
-  temp.clear();
-
-  return reg;
+  return __get_num(line, i, start);
 }
 
 static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
                           int32_t &r2) {
   std::vector<int> temp;
   size_t i = 0;
+  int is_neg;
 
   r1 = __get_reg_num(line, i);
 
-  while (!isdigit(line[i])) i++;
+  i = line.find_first_of("1234567890", i);
 
-  int is_neg = (i - 1 >= 0 && line[i - 1] == '-' ? 1 : 0);
-  int is_hex = 0;
+  is_neg = line[i - 1] == '-';
 
-  while (line[i] != '(') {
-    temp.push_back(line[i] - '0');
-    if (line[i] == 'x') is_hex = 1;
-    i++;
-  }
-
-  imm = (is_hex == 0 ? __get_num(temp, 10) : __get_hex(temp));
-  temp.clear();
+  imm = __get_num(line, i, i);
 
   if (is_neg) imm = __get_inver(imm, 12);
 
-  i = line.find('x', i) + 1;
-
-  while (i < line.size() && line[i] != ')') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-
-  r2 = __get_num(temp, 10);
-  temp.clear();
+  r2 = __get_reg_num(line, i);
 }
 
 static int32_t __get_last_num(const std::string &line, size_t i,
@@ -153,9 +121,7 @@ static void __i_type(const size_t index) {
   int32_t rd, rs1, imm;
   size_t i;
 
-  i = line.find_first_of('(');
-
-  if ((i != std::string::npos) && (line[i] == '(')) {
+  if (line.find_first_of('(') != std::string::npos) {
     __get_dst_src(line, rd, imm, rs1);
   } else {
     i = 1;
@@ -177,9 +143,7 @@ static void __s_type(const size_t index) {
   int32_t rs1, rs2, imm;
   size_t i;
 
-  i = line.find_first_of('(');
-
-  if ((i != std::string::npos) && (line[i] == '(')) {
+  if (line.find_first_of('(') != std::string::npos) {
     __get_dst_src(line, rs2, imm, rs1);
   } else {
     i = 1;
@@ -206,15 +170,7 @@ static void __r_type(const size_t index) {
   i = 1;
   rd = __get_reg_num(line, i);
   rs1 = __get_reg_num(line, i);
-
-  i = line.find('x', i) + 1;
-
-  while (i < line.size() && line[i] != ' ') {
-    temp.push_back(line[i] - '0');
-    i++;
-  }
-  rs2 = __get_num(temp, 10);
-  temp.clear();
+  rs2 = __get_reg_num(line, i);
 
   __fill_bin_rd(rd);
   __fill_bin_rs1(rs1);
