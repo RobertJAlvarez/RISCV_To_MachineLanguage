@@ -22,20 +22,7 @@ static char __int_to_hex(const int num) {
   return static_cast<char>('A' + (num - 10));
 }
 
-/* Return a numerical value of whose digits are stored in std::vector */
-static int32_t __get_num(const std::vector<int> temp, const int32_t base) {
-  int32_t num = 1;
-  int32_t ans = 0;
-
-  for (auto digit = temp.rbegin(); digit != temp.rend(); ++digit) {
-    ans += num * *digit;
-    num *= base;
-  }
-
-  return ans;
-}
-
-void __write_mc(const int32_t binary[], uint32_t &pc) {
+void __write_mc(uint32_t binary, uint32_t &pc) {
   std::string s;
   uint32_t temppc = pc;
 
@@ -49,12 +36,8 @@ void __write_mc(const int32_t binary[], uint32_t &pc) {
 
   mc_file << "0x" << s << " 0x";
 
-  for (int i = 0; i < ARCH_SIZE; i++) {
-    std::vector<int> t;
-    for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
-    i--;
-
-    mc_file << __int_to_hex(__get_num(t, 2));
+  for (int i = 0; i < 8; i++) {
+    mc_file << std::hex << std::uppercase << static_cast<int>((binary>>(28-4*i)) & 0xF);
   }
 
   mc_file << '\n';

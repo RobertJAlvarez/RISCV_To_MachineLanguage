@@ -12,7 +12,7 @@ std::vector<std::string> formats;
 const int32_t ARCH_SIZE = 32;
 
 static uint32_t pc = 0;
-static int32_t binary[ARCH_SIZE];
+static uint32_t binary = 0;
 
 extern std::vector<lab> labels;
 
@@ -86,27 +86,31 @@ static int32_t __get_last_num(const std::string &line, size_t i,
   return imm;
 }
 
+static inline void __set_k_bit(uint32_t &n, int k, uint32_t val) {
+  n |= (val << k);
+}
+
 static void __fill_bin(const std::string &format, const int start,
                        const int end) {
   size_t i = 0;
-  for (int j = start; j < end; j++) {
-    binary[j] = format[i++] - '0';
+  for (int j = start; j >= end; j--) {
+    __set_k_bit(binary, j, static_cast<uint32_t>(format[i++] - '0'));
   }
   i++;
 }
 
 static void __fill_bin(int32_t &num, const int start, const int end) {
-  for (int j = start; j > end; j--) {
-    binary[j] = num & 1;
+  for (int j = start; j < end; j++) {
+    __set_k_bit(binary, j, num & 1);
     num /= 2;
   }
 }
 
-static inline void __fill_bin_rd(int32_t rd) { __fill_bin(rd, 24, 19); }
+static inline void __fill_bin_rd(int32_t rd) { __fill_bin(rd, 7, 12); }
 
-static inline void __fill_bin_rs1(int32_t rs1) { __fill_bin(rs1, 16, 11); }
+static inline void __fill_bin_rs1(int32_t rs1) { __fill_bin(rs1, 15, 20); }
 
-static inline void __fill_bin_rs2(int32_t rs2) { __fill_bin(rs2, 11, 6); }
+static inline void __fill_bin_rs2(int32_t rs2) { __fill_bin(rs2, 20, 25); }
 
 static void __i_type(const size_t index) {
   const std::string &line = code[index];
@@ -125,7 +129,7 @@ static void __i_type(const size_t index) {
 
   __fill_bin_rd(rd);
   __fill_bin_rs1(rs1);
-  __fill_bin(imm, 11, -1);
+  __fill_bin(imm, 20, 32);
 
   __write_mc(binary, pc);
 }
@@ -147,8 +151,8 @@ static void __s_type(const size_t index) {
 
   __fill_bin_rs1(rs1);
   __fill_bin_rs2(rs2);
-  __fill_bin(imm, 24, 19);
-  __fill_bin(imm, 6, -1);
+  __fill_bin(imm, 7, 12);
+  __fill_bin(imm, 25, 32);
 
   __write_mc(binary, pc);
 }
@@ -203,31 +207,17 @@ static void __uj_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, imm;
-  size_t i, j;
+  size_t i;
 
   i = 0;
   rd = __get_reg_num(line, i);
   imm = __get_label_imm(index, i, 20);
 
   __fill_bin_rd(rd);
-
-  j = 10;
-  for (int k = 0; k < 20; k++) {
-    if (k <= 9) {
-      binary[j--] = imm & 1;
-      imm /= 2;
-    } else if (k == 10) {
-      binary[11] = imm & 1;
-      imm /= 2;
-      j = 19;
-    } else if (k != 19) {
-      binary[j--] = imm & 1;
-      imm /= 2;
-    } else {
-      binary[0] = imm & 1;
-      imm /= 2;
-    }
-  }
+  __fill_bin(imm, 21, 32);
+  __fill_bin(imm, 20, 21);
+  __fill_bin(imm, 12, 20);
+  __fill_bin(imm, 31, 32);
 
   __write_mc(binary, pc);
 }
@@ -243,7 +233,8 @@ static void __u_type(const size_t index) {
   imm = __get_last_num(line, i, 20);
 
   __fill_bin_rd(rd);
-  __fill_bin(imm, 19, -1);
+  // imm >>= 12;
+  __fill_bin(imm, 12, 32);
 
   __write_mc(binary, pc);
 }
@@ -262,13 +253,10 @@ static void __sb_type(const size_t index) {
 
   __fill_bin_rs1(rs1);
   __fill_bin_rs2(rs2);
-  __fill_bin(imm, 23, 19);
-  __fill_bin(imm, 6, -1);
-
-  binary[24] = imm & 1;
-  imm /= 2;
-
-  binary[0] = imm & 1;
+  __fill_bin(imm, 8, 12);
+  __fill_bin(imm, 25, 31);
+  __fill_bin(imm, 7, 8);
+  __fill_bin(imm, 31, 32);
 
   __write_mc(binary, pc);
 }
@@ -298,11 +286,10 @@ static void __set_format_bin(const std::vector<std::string> &tokens) {
   const static struct {
     const int start;
     const int end;
-  } ranges[] = {{25, ARCH_SIZE}, {17, 20}, {0, 7}};
+  } ranges[] = {{6, 0}, {14, 12}, {31, 25}};
 
-  for (size_t i = 1; i < tokens.size() - 1; i++) {
+  for (size_t i = 1; i < tokens.size() - 1; i++)
     __fill_bin(tokens[i], ranges[i - 1].start, ranges[i - 1].end);
-  }
 }
 
 /* To extract instruction type and process them independently. */
@@ -321,6 +308,7 @@ static void __process_code(void) {
 
     if (!format.empty()) {
       const std::vector<std::string> tokens = __tokenize(format);
+      binary = 0;
       __set_format_bin(tokens);
       __process_instr(tokens.back(), i);
     }
