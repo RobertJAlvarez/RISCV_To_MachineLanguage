@@ -10,7 +10,7 @@ std::vector<std::string> formats;
 
 const int32_t ARCH_SIZE = 32;
 
-static int32_t pc = 0;
+static uint32_t pc = 0;
 static int32_t binary[ARCH_SIZE];
 
 extern std::vector<lab> labels;
@@ -20,7 +20,7 @@ static int32_t __get_hex(std::vector<int> &temp) {
   int32_t num = 1;
   int32_t ans = 0;
 
-  for (int32_t i = temp.size() - 1; i > 1; i--) {
+  for (size_t i = temp.size() - 1; i > 1; i--) {
     if (temp[i] < 16) {
       ans += temp[i] * num;
     } else if (temp[i] <= 42) {
@@ -41,10 +41,21 @@ static int32_t __get_reg_num(const std::string &line, size_t &i) {
 
   i = line.find('x', i) + 1;
 
+  // std::cout << "line: " << line << std::endl;
+  // std::cout << "i = " << std::to_string(i) << std::endl;
+
   while (line[i] != ' ') {
     temp.push_back(line[i] - '0');
     i++;
   }
+
+  /*
+  for (const int &num : temp) {
+    std::cout << num;
+    std::cout << " ";
+  }
+  std::cout << std::endl;
+  */
 
   reg = __get_num(temp, 10);
   temp.clear();
@@ -116,7 +127,7 @@ static int32_t __get_last_num(const std::string &line, size_t i,
 
 static void __fill_bin(const std::string &format, const int start,
                        const int end) {
-  int i = 0;
+  size_t i = 0;
   for (int j = start; j < end; j++) {
     binary[j] = format[i++] - '0';
   }
@@ -136,7 +147,7 @@ static inline void __fill_bin_rs1(int32_t rs1) { __fill_bin(rs1, 16, 11); }
 
 static inline void __fill_bin_rs2(int32_t rs2) { __fill_bin(rs2, 11, 6); }
 
-static void __i_type(const int index) {
+static void __i_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, rs1, imm;
@@ -160,7 +171,7 @@ static void __i_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static void __s_type(const int index) {
+static void __s_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rs1, rs2, imm;
@@ -185,7 +196,7 @@ static void __s_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static void __r_type(const int index) {
+static void __r_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, rs1, rs2;
@@ -212,19 +223,19 @@ static void __r_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static int __get_label(const std::string label, const int ind) {
-  int sizelabel = labels.size();
+static int __get_label(const std::string label, const size_t ind) {
+  size_t sizelabel = labels.size();
 
-  for (int i = 0; i < sizelabel; i++) {
+  for (size_t i = 0; i < sizelabel; i++) {
     if (label.compare(labels[i].s) == 0) {
-      return (labels[i].index - ind) * 2;
+      return (labels[i].index - ind) << 1;
     }
   }
 
   return -1;
 }
 
-static int32_t __get_label_imm(const int index, size_t &i, const int n_bits) {
+static int32_t __get_label_imm(const size_t index, size_t &i, const int n_bits) {
   const std::string &line = code[index];
   std::string label;
   int32_t imm;
@@ -239,7 +250,7 @@ static int32_t __get_label_imm(const int index, size_t &i, const int n_bits) {
   return imm;
 }
 
-static void __uj_type(const int index) {
+static void __uj_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   int32_t rd, imm;
@@ -272,7 +283,7 @@ static void __uj_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static void __u_type(const int index) {
+static void __u_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -288,7 +299,7 @@ static void __u_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static void __sb_type(const int index) {
+static void __sb_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
   std::string label;
@@ -313,7 +324,7 @@ static void __sb_type(const int index) {
   __write_mc(binary, pc);
 }
 
-static void __process_instr(const std::string ins, const int index) {
+static void __process_instr(const std::string ins, const size_t index) {
   if (ins == "I") __i_type(index);
   if (ins == "R") __r_type(index);
   if (ins == "S") __s_type(index);

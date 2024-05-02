@@ -17,9 +17,9 @@ extern std::vector<std::string> formats;
 // Global variable to keep mc_file open as long as possible
 static std::ofstream mc_file;
 
-void __write_mc(const int32_t binary[], int32_t &pc) {
+void __write_mc(const int32_t binary[], uint32_t &pc) {
   std::string s;
-  int32_t temppc = pc;
+  uint32_t temppc = pc;
 
   if (temppc == 0) s += '0';
 
@@ -35,6 +35,8 @@ void __write_mc(const int32_t binary[], int32_t &pc) {
     std::vector<int> t;
     for (int j = 0; j < 4; j++) t.push_back(binary[i++]);
     i--;
+
+    // vector<int> extracted(binary.begin() + i, binary.begin() + j + 4);
 
     mc_file << __int_to_hex(__get_num(t, 2));
   }
@@ -60,7 +62,7 @@ static int __formats(const std::string &filename) {
 static std::string __convert(const std::string s, const int len) {
   std::stringstream ss;
   std::string ans;
-  uint32_t num = 0;
+  int32_t num = 0;
   int is_neg = 0;
 
   // Convert input s into a number
@@ -83,8 +85,8 @@ static std::string __convert(const std::string s, const int len) {
   // Convert number into hexadecimal number using 8 character.
   // For example, 20 = 00000014
   for (int i = 0; i < len; i++) {
-    ans += __int_to_hex(num % 0x10);
-    num /= 16;
+    ans += __int_to_hex(((unsigned int) num) % 0x10);
+    num >>= 4;
   }
   reverse(ans.begin(), ans.end());
 
