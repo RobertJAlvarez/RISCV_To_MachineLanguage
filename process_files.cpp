@@ -17,6 +17,24 @@ extern std::vector<std::string> formats;
 // Global variable to keep mc_file open as long as possible
 static std::ofstream mc_file;
 
+static char __int_to_hex(const int num) {
+  if (num <= 9) return static_cast<char>('0' + num);
+  return static_cast<char>('A' + (num - 10));
+}
+
+/* Return a numerical value of whose digits are stored in std::vector */
+static int32_t __get_num(const std::vector<int> temp, const int32_t base) {
+  int32_t num = 1;
+  int32_t ans = 0;
+
+  for (auto digit = temp.rbegin(); digit != temp.rend(); ++digit) {
+    ans += num * *digit;
+    num *= base;
+  }
+
+  return ans;
+}
+
 void __write_mc(const int32_t binary[], uint32_t &pc) {
   std::string s;
   uint32_t temppc = pc;

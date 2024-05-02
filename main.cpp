@@ -1,3 +1,4 @@
+#include <string>    // std::stoi()
 #include <iostream>  // std::endl, std::cerr
 #include <sstream>   // std::stringstream
 
@@ -15,26 +16,6 @@ static int32_t binary[ARCH_SIZE];
 
 extern std::vector<lab> labels;
 
-// To get numerical value of hexadecimal formats
-static int32_t __get_hex(std::vector<int> &temp) {
-  int32_t num = 1;
-  int32_t ans = 0;
-
-  for (size_t i = temp.size() - 1; i > 1; i--) {
-    if (temp[i] < 16) {
-      ans += temp[i] * num;
-    } else if (temp[i] <= 42) {
-      ans += (temp[i] - 7) * num;
-    } else {
-      temp[i] -= 32;
-      ans += (temp[i] - 7) * num;
-    }
-    num *= 16;
-  }
-
-  return ans;
-}
-
 static int32_t __get_num(const std::string &line, size_t &i, const size_t start) {
   i = line.find_first_not_of("1234567890", start);
   return std::stoi(line.substr(start, i - start));
@@ -44,6 +25,22 @@ static int32_t __get_reg_num(const std::string &line, size_t &i) {
   size_t start = line.find('x', i) + 1;
 
   return __get_num(line, i, start);
+}
+
+/* If positive, take twos complement of the first n_bits. Else, turn to 0 all
+ * bits higher than n_bits.
+ */
+static int32_t __get_inver(int32_t num, const int n_bits) {
+  // Create a mask with the first n bits set to 1
+  int32_t mask = (n_bits >= 32 ? 0 : 1 << n_bits) - 1;
+
+  // Take the twos complement of the first n_bits
+  if (num >= 0) num = (num ^ mask) + 1;
+
+  // If num is negative we truncate it to the first n_bits
+  num &= mask;
+
+  return num;
 }
 
 static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
@@ -69,7 +66,7 @@ static int32_t __get_last_num(const std::string &line, size_t i,
                               const int n_bits) {
   std::vector<int> temp;
   int32_t imm;
-  int is_hex = 0;
+  int base;
   int is_neg = 0;
 
   i = line.find_first_not_of(' ', i);
@@ -79,13 +76,9 @@ static int32_t __get_last_num(const std::string &line, size_t i,
     i++;
   }
 
-  while (i < line.size() && line[i] != ' ') {
-    temp.push_back(line[i] - '0');
-    if (line[i] == 'x') is_hex = 1;
-    i++;
-  }
+  base = (line.find("x", i) == std::string::npos ? 10 : 16);
+  imm = std::stoi(line.substr(i), 0, base);
 
-  imm = (is_hex == 0 ? __get_num(temp, 10) : __get_hex(temp));
   if (is_neg) imm = __get_inver(imm, n_bits);
 
   temp.clear();
