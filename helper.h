@@ -2,7 +2,7 @@
 #define __HELPER_H__
 
 #include <stdint.h>
-
+#include <string>
 #include <vector>
 
 /* If positive, take twos complement of the first n_bits. Else, turn to 0 all

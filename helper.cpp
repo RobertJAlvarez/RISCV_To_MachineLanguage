@@ -20,13 +20,13 @@ char __int_to_hex(const int32_t num) {
   return static_cast<char>('A' + (num - 10));
 }
 
-int32_t __get_num(const std::vector<int> temp, const int32_t giv) {
+int32_t __get_num(const std::vector<int> temp, const int32_t base) {
   int32_t num = 1;
   int32_t ans = 0;
 
   for (int32_t i = temp.size() - 1; i >= 0; i--) {
     ans += num * temp[i];
-    num *= giv;
+    num *= base;
   }
 
   return ans;
