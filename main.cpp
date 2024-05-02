@@ -223,7 +223,7 @@ static void __r_type(const size_t index) {
   __write_mc(binary, pc);
 }
 
-static int __get_label(const std::string label, const size_t ind) {
+static int32_t __get_label(const std::string label, const int32_t ind) {
   size_t sizelabel = labels.size();
 
   for (size_t i = 0; i < sizelabel; i++) {
@@ -243,9 +243,9 @@ static int32_t __get_label_imm(const size_t index, size_t &i, const int n_bits) 
   i = line.find_first_not_of(' ', i);
 
   label = line.substr(i, line.find(' ', i));
-  imm = __get_label(label, index);
+  imm = __get_label(label, (int32_t) index);
 
-  if (imm < 0) imm = __get_inver(imm, n_bits);
+  if (imm < 0) imm = (int32_t) __get_inver(imm, n_bits);
 
   return imm;
 }

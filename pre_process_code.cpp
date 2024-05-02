@@ -14,7 +14,7 @@ std::vector<seg> datalabel;
 
 /* To process Load Word (lw) pseudo instruction. */
 static void __process_lw(const std::string type, const std::string &line,
-                         const size_t pos) {
+                         const int32_t pos) {
   std::string s, labeladd;
   int32_t currentpc, temp1;
   size_t i;
@@ -77,7 +77,7 @@ static void __process_la(const size_t index) {
   code.push_back("addi x" + s + " x" + s + " " + labeladd);
 }
 
-static size_t __label_position(const std::string &line) {
+static int32_t __label_position(const std::string &line) {
   std::string lab;
   size_t j;
 
@@ -89,7 +89,7 @@ static size_t __label_position(const std::string &line) {
     }
   }
 
-  return ((size_t) -1);
+  return -1;
 }
 
 static inline int __is_load_instr(const std::string &instr) {
@@ -136,7 +136,7 @@ static std::string __change_reg_names(std::string line) {
 
 void pre_process_code(void) {
   size_t n_code_lines = codeinit.size();
-  size_t count = 0;
+  int32_t count = 0;
 
   for (size_t i = 0; i < n_code_lines; i++) {
     const std::string &line = codeinit[i];
@@ -163,9 +163,9 @@ void pre_process_code(void) {
       count += 2;
       continue;
     } else if (__is_load_instr(instr)) {
-      size_t pos;
+      int32_t pos;
 
-      if ((pos = __label_position(line)) != ((size_t) -1)) {
+      if ((pos = __label_position(line)) != -1) {
         __process_lw(instr, line, pos);
         count += 2;
         continue;

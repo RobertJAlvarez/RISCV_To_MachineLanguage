@@ -9,12 +9,12 @@ extern const int32_t START;
 
 typedef struct {
   std::string s;
-  size_t index;
+  int32_t index;
 } lab;
 
 typedef struct {
   std::string name;
-  size_t position;
+  int32_t position;
 } seg;
 
 extern std::vector<std::string> codeinit;
