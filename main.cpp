@@ -112,6 +112,14 @@ static inline void __fill_bin_rs1(int32_t rs1) { __fill_bin(rs1, 15, 20); }
 
 static inline void __fill_bin_rs2(int32_t rs2) { __fill_bin(rs2, 20, 25); }
 
+static void __write_i_instr(int32_t rd, int32_t rs1, int32_t imm) {
+  __fill_bin_rd(rd);
+  __fill_bin_rs1(rs1);
+  __fill_bin(imm, 20, 32);
+
+  __write_mc(binary, pc);
+}
+
 static void __i_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
@@ -127,9 +135,14 @@ static void __i_type(const size_t index) {
     imm = __get_last_num(line, i, 12);
   }
 
-  __fill_bin_rd(rd);
+  __write_i_instr(rd, rs1, imm);
+}
+
+static void __write_s_instr(int32_t rs1, int32_t rs2, int32_t imm) {
   __fill_bin_rs1(rs1);
-  __fill_bin(imm, 20, 32);
+  __fill_bin_rs2(rs2);
+  __fill_bin(imm, 7, 12);
+  __fill_bin(imm, 25, 32);
 
   __write_mc(binary, pc);
 }
@@ -149,10 +162,13 @@ static void __s_type(const size_t index) {
     imm = __get_last_num(line, i, 12);
   }
 
+  __write_s_instr(rs1, rs2, imm);
+}
+
+static void __write_r_instr(int32_t rd, int32_t rs1, int32_t rs2) {
+  __fill_bin_rd(rd);
   __fill_bin_rs1(rs1);
   __fill_bin_rs2(rs2);
-  __fill_bin(imm, 7, 12);
-  __fill_bin(imm, 25, 32);
 
   __write_mc(binary, pc);
 }
@@ -169,11 +185,7 @@ static void __r_type(const size_t index) {
   rs1 = __get_reg_num(line, i);
   rs2 = __get_reg_num(line, i);
 
-  __fill_bin_rd(rd);
-  __fill_bin_rs1(rs1);
-  __fill_bin_rs2(rs2);
-
-  __write_mc(binary, pc);
+  __write_r_instr(rd, rs1, rs2);
 }
 
 static int32_t __get_label(const std::string label, const int32_t ind) {
@@ -203,6 +215,16 @@ static int32_t __get_label_imm(const size_t index, size_t &i, const int n_bits) 
   return imm;
 }
 
+static void __write_uj_instr(int32_t rd, int32_t imm) {
+  __fill_bin_rd(rd);
+  __fill_bin(imm, 21, 32);
+  __fill_bin(imm, 20, 21);
+  __fill_bin(imm, 12, 20);
+  __fill_bin(imm, 31, 32);
+
+  __write_mc(binary, pc);
+}
+
 static void __uj_type(const size_t index) {
   const std::string &line = code[index];
   std::vector<int> temp;
@@ -213,11 +235,13 @@ static void __uj_type(const size_t index) {
   rd = __get_reg_num(line, i);
   imm = __get_label_imm(index, i, 20);
 
+  __write_uj_instr(rd, imm);
+}
+
+static void __write_u_instr(int32_t rd, int32_t imm) {
   __fill_bin_rd(rd);
-  __fill_bin(imm, 21, 32);
-  __fill_bin(imm, 20, 21);
-  __fill_bin(imm, 12, 20);
-  __fill_bin(imm, 31, 32);
+  // imm >>= 12;
+  __fill_bin(imm, 12, 32);
 
   __write_mc(binary, pc);
 }
@@ -232,9 +256,16 @@ static void __u_type(const size_t index) {
   rd = __get_reg_num(line, i);
   imm = __get_last_num(line, i, 20);
 
-  __fill_bin_rd(rd);
-  // imm >>= 12;
-  __fill_bin(imm, 12, 32);
+  __write_u_instr(rd, imm);
+}
+
+static void __write_sb_instr(int32_t rs1, int32_t rs2, int32_t imm) {
+  __fill_bin_rs1(rs1);
+  __fill_bin_rs2(rs2);
+  __fill_bin(imm, 8, 12);
+  __fill_bin(imm, 25, 31);
+  __fill_bin(imm, 7, 8);
+  __fill_bin(imm, 31, 32);
 
   __write_mc(binary, pc);
 }
@@ -251,14 +282,7 @@ static void __sb_type(const size_t index) {
   rs2 = __get_reg_num(line, i);
   imm = __get_label_imm(index, i, 12);
 
-  __fill_bin_rs1(rs1);
-  __fill_bin_rs2(rs2);
-  __fill_bin(imm, 8, 12);
-  __fill_bin(imm, 25, 31);
-  __fill_bin(imm, 7, 8);
-  __fill_bin(imm, 31, 32);
-
-  __write_mc(binary, pc);
+  __write_sb_instr(rs1, rs2, imm);
 }
 
 static void __process_instr(const std::string ins, const size_t index) {
@@ -308,7 +332,7 @@ static void __process_code(void) {
 
     if (!format.empty()) {
       const std::vector<std::string> tokens = __tokenize(format);
-      binary = 0;
+      binary = ((uint32_t) 0);  // Restart binary code for next instruction
       __set_format_bin(tokens);
       __process_instr(tokens.back(), i);
     }
