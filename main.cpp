@@ -130,7 +130,7 @@ static void __i_type(const size_t index) {
   if (line.find_first_of('(') != std::string::npos) {
     __get_dst_src(line, rd, imm, rs1);
   } else {
-    i = 1;
+    i = line.find(' ');
     rd = __get_reg_num(line, i);
     rs1 = __get_reg_num(line, i);
     imm = __get_last_num(line, i, 12);
@@ -157,7 +157,7 @@ static void __s_type(const size_t index) {
   if (line.find_first_of('(') != std::string::npos) {
     __get_dst_src(line, rs2, imm, rs1);
   } else {
-    i = 1;
+    i = line.find(' ');
     rs1 = __get_reg_num(line, i);
     rs2 = __get_reg_num(line, i);
     imm = __get_last_num(line, i, 12);
@@ -180,8 +180,7 @@ static void __r_type(const size_t index) {
   int32_t rd, rs1, rs2;
   size_t i;
 
-  // Start at 1 to get rid of x from xor instruction
-  i = 1;
+  i = line.find(' ');
   rd = __get_reg_num(line, i);
   rs1 = __get_reg_num(line, i);
   rs2 = __get_reg_num(line, i);
