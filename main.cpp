@@ -1,6 +1,6 @@
-#include <string>    // std::stoi()
 #include <iostream>  // std::endl, std::cerr
 #include <sstream>   // std::stringstream
+#include <string>    // std::stoi()
 
 #include "helper.h"
 #include "pre_process_code.h"
@@ -16,7 +16,8 @@ static uint32_t binary = 0;
 
 extern std::vector<lab> labels;
 
-static int32_t __get_num(const std::string &line, size_t &i, const size_t start) {
+static int32_t __get_num(const std::string &line, size_t &i,
+                         const size_t start) {
   i = line.find_first_not_of("1234567890", start);
   return std::stoi(line.substr(start, i - start));
 }
@@ -200,7 +201,8 @@ static int32_t __get_label(const std::string label, const int32_t ind) {
   return -1;
 }
 
-static int32_t __get_label_imm(const size_t index, size_t &i, const int n_bits) {
+static int32_t __get_label_imm(const size_t index, size_t &i,
+                               const int n_bits) {
   const std::string &line = code[index];
   std::string label;
   int32_t imm;
@@ -208,9 +210,9 @@ static int32_t __get_label_imm(const size_t index, size_t &i, const int n_bits) 
   i = line.find_first_not_of(' ', i);
 
   label = line.substr(i, line.find(' ', i));
-  imm = __get_label(label, (int32_t) index);
+  imm = __get_label(label, (int32_t)index);
 
-  if (imm < 0) imm = (int32_t) __get_inver(imm, n_bits);
+  if (imm < 0) imm = (int32_t)__get_inver(imm, n_bits);
 
   return imm;
 }
@@ -286,12 +288,18 @@ static void __sb_type(const size_t index) {
 }
 
 static void __process_instr(const std::string ins, const size_t index) {
-  if (ins == "I") __i_type(index);
-  if (ins == "R") __r_type(index);
-  if (ins == "S") __s_type(index);
-  if (ins == "UJ") __uj_type(index);
-  if (ins == "U") __u_type(index);
-  if (ins == "SB") __sb_type(index);
+  if (ins == "I")
+    __i_type(index);
+  else if (ins == "R")
+    __r_type(index);
+  else if (ins == "S")
+    __s_type(index);
+  else if (ins == "UJ")
+    __uj_type(index);
+  else if (ins == "U")
+    __u_type(index);
+  else if (ins == "SB")
+    __sb_type(index);
 }
 
 static std::vector<std::string> __tokenize(const std::string &str) {
@@ -332,7 +340,7 @@ static void __process_code(void) {
 
     if (!format.empty()) {
       const std::vector<std::string> tokens = __tokenize(format);
-      binary = ((uint32_t) 0);  // Restart binary code for next instruction
+      binary = ((uint32_t)0);  // Restart binary code for next instruction
       __set_format_bin(tokens);
       __process_instr(tokens.back(), i);
     }

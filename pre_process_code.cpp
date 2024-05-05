@@ -119,7 +119,7 @@ static std::string __change_reg_names(std::string line) {
   size_t pos;
 
   for (size_t i = 1; i < sizeof(conversion) / sizeof(conversion[0]); i++) {
-    pos = ((size_t)0);
+    pos = line.find(' ');
 
     pos = line.find(conversion[i].ABI_name, pos);
 
