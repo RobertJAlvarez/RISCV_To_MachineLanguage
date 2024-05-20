@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <iostream>  // std::endl, std::cerr
 #include <vector>
 
 #include "helper.h"
@@ -12,84 +13,79 @@ std::vector<std::string> codeinit;
 std::vector<lab> labels;
 std::vector<seg> datalabel;
 
-/* To process Load Word (lw) pseudo instruction. */
+/* To process Load Word (lw) pseudo instruction.
+ *
+ * "lw t0, SYMBOL" -> "lui t0, SYMBOL[31:12]" + "lw t0, SYMBOL[11:0](t0)"
+ */
 static void __process_lw(const std::string type, const std::string &line,
                          const int32_t pos) {
-  std::string s, labeladd;
-  int32_t currentpc, temp1;
+  std::string rd, labeladd;
+  int32_t currentpc, temp;
   size_t i;
 
-  i = line.find('x') + 1;
+  std::cout << __func__ << std::endl;
+  std::cout << "line: " << line << std::endl;
 
-  s = line.substr(i, line.find_first_of(' ', i) - i);
-  code.push_back("auipc x" + s + " 65536");
+  i = line.find('x') + 1;
+  rd = line.substr(i, line.find_first_of(' ', i) - i);
+
+  code.push_back("auipc x" + rd + " 65536");
 
   currentpc = pos - (code.size() * 4 - 4 + START);
-  temp1 = abs(currentpc);
+  temp = abs(currentpc);
 
-  while (temp1 != 0) {
-    labeladd += (temp1 % 10) + '0';
-    temp1 /= 10;
+  while (temp != 0) {
+    labeladd += (temp % 10) + '0';
+    temp /= 10;
   }
 
+  if (currentpc < 0) std::cout << "!!!!" << std::endl;
   labeladd += (currentpc < 0 ? '-' : '0');
   reverse(labeladd.begin(), labeladd.end());
 
-  code.push_back(type + " x" + s + " " + labeladd + "(x" + s + ")");
-}
-
-/* To process Load Address(la) pseudo instruction. */
-static void __process_la(const size_t index) {
-  const std::string &line = codeinit[index];
-  std::string s, labeltype, labeladd;
-  int32_t currentpc, labeladdress;
-  size_t i = 0;
-
-  i = line.find('x') + 1;
-
-  s = line.substr(i, line.find_first_of(' ', i) - i);
-  code.push_back("auipc x" + s + " 65536");
-
-  currentpc = (code.size() * 4 - 4) + START;
-
-  i = line.find(' ', i);
-
-  labeltype = line.substr(i, line.find(' ', i) - i);
-  labeladdress = 0;
-
-  for (size_t j = 0; j < datalabel.size(); j++) {
-    if (labeltype.compare(datalabel[j].name) == 0) {
-      labeladdress = datalabel[j].position;
-      break;
-    }
-  }
-
-  int32_t temp1 = abs(labeladdress - currentpc);
-
-  while (temp1 != 0) {
-    labeladd += (temp1 % 10) + '0';
-    temp1 /= 10;
-  }
-
-  labeladd += (labeladdress < 0 ? '-' : '0');
-  reverse(labeladd.begin(), labeladd.end());
-
-  code.push_back("addi x" + s + " x" + s + " " + labeladd);
+  std::cout << type + " x" + rd + " " + labeladd + "(x" + rd + ")" << std::endl;
+  code.push_back(type + " x" + rd + " " + labeladd + "(x" + rd + ")");
 }
 
 static int32_t __label_position(const std::string &line) {
-  std::string lab;
+  std::string label;
   size_t j;
 
-  lab = line.substr(line.find_last_of(' ') + 1);
+  label = line.substr(line.find_last_of(' ') + 1);
 
   for (j = 0; j < datalabel.size(); j++) {
-    if (lab.compare(datalabel[j].name) == 0) {
+    if (label.compare(datalabel[j].name) == 0) {
       return datalabel[j].position;
     }
   }
 
   return -1;
+}
+
+/* To process Load Address(la) pseudo instruction.
+ *
+ * "la t0, SYMBOL" -> "lui t0, SYMBOL[31:12]" -> "addi t0, t0, SYMBOL[11:0]"
+ */
+static void __process_la(const std::string &line) {
+  std::string rd, labeltype, labeladd;
+  int32_t labeladdress;
+  size_t i = 0;
+
+  i = line.find('x') + 1;
+  rd = line.substr(i, line.find_first_of(' ', i) - i);
+
+  code.push_back("auipc x" + rd + " 65536");
+
+  if ((labeladdress = __label_position(line)) == -1) {
+    std::cerr << "ERROR: Label in \"" << line
+              << "\" doesn't exists anywhere in the file" << std::endl;
+    exit(1);
+  }
+
+  labeladd = std::to_string(labeladdress - ((code.size() * 4 - 4) + START));
+
+  code.push_back("addi x" + rd + " x" + rd + " " + labeladd);
+  // std::cout << "addi x" + rd + " x" + rd + " " + labeladd << std::endl;
 }
 
 static inline int __is_load_instr(const std::string &instr) {
@@ -159,7 +155,7 @@ void pre_process_code(void) {
     instr = line.substr(j, line.find_first_of(' ', j) - j);
 
     if (instr == "la") {
-      __process_la(i);
+      __process_la(line);
       count += 2;
       continue;
     } else if (__is_load_instr(instr)) {
