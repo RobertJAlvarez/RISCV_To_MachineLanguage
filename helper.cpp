@@ -1,3 +1,6 @@
+#include <sstream>
+#include <string>
+
 #include "helper.h"
 
 extern std::vector<std::string> formats;
@@ -15,4 +18,16 @@ std::string __get_instr_format(const std::string &instr) {
   }
 
   return std::string();
+}
+
+std::vector<std::string> tokenize(const std::string &str, const char delims) {
+  std::vector<std::string> tokens;
+  std::stringstream iss(str);
+  std::string token;
+
+  while (getline(iss, token, delims)) {
+    if (token != std::string()) tokens.push_back(token);
+  }
+
+  return tokens;
 }
