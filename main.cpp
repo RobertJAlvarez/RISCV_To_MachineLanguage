@@ -16,18 +16,6 @@ static uint32_t binary = 0;
 
 extern std::vector<lab> labels;
 
-static int32_t __get_num(const std::string &line, size_t &i,
-                         const size_t start) {
-  i = line.find_first_not_of("1234567890", start);
-  return std::stoi(line.substr(start, i - start));
-}
-
-static int32_t __get_reg_num(const std::string &line, size_t &i) {
-  size_t start = line.find('x', i) + 1;
-
-  return __get_num(line, i, start);
-}
-
 /* If positive, take twos complement of the first n_bits. Else, turn to 0 all
  * bits higher than n_bits.
  */
@@ -42,6 +30,18 @@ static int32_t __get_inver(int32_t num, const int n_bits) {
   num &= mask;
 
   return num;
+}
+
+static int32_t __get_num(const std::string &line, size_t &i,
+                         const size_t start) {
+  i = line.find_first_not_of("1234567890", start);
+  return std::stoi(line.substr(start, i - start));
+}
+
+static int32_t __get_reg_num(const std::string &line, size_t &i) {
+  size_t start = line.find('x', i) + 1;
+
+  return __get_num(line, i, start);
 }
 
 static void __get_dst_src(const std::string &line, int32_t &r1, int32_t &imm,
@@ -188,13 +188,11 @@ static void __r_type(const size_t index) {
   __write_r_instr(rd, rs1, rs2);
 }
 
-static int32_t __get_label(const std::string label, const int32_t ind) {
+static int32_t __get_label_off(const std::string label, const int32_t ind) {
   size_t sizelabel = labels.size();
 
   for (size_t i = 0; i < sizelabel; i++) {
-    if (label.compare(labels[i].s) == 0) {
-      return (labels[i].index - ind) << 1;
-    }
+    if (label.compare(labels[i].s) == 0) return (labels[i].index - ind) << 1;
   }
 
   return -1;
@@ -209,7 +207,7 @@ static int32_t __get_label_imm(const size_t index, size_t &i,
   i = line.find_first_not_of(' ', i);
 
   label = line.substr(i, line.find(' ', i));
-  imm = __get_label(label, (int32_t)index);
+  imm = __get_label_off(label, (int32_t)index);
 
   if (imm < 0) imm = (int32_t)__get_inver(imm, n_bits);
 
@@ -301,18 +299,6 @@ static void __process_instr(const std::string ins, const size_t index) {
     __sb_type(index);
 }
 
-static std::vector<std::string> __tokenize(const std::string &str) {
-  std::vector<std::string> tokens;
-  std::istringstream iss(str);
-  std::string token;
-
-  while (iss >> token) {
-    tokens.push_back(token);
-  }
-
-  return tokens;
-}
-
 static void __set_format_bin(const std::vector<std::string> &tokens) {
   const static struct {
     const int start;
@@ -330,15 +316,13 @@ static void __process_code(void) {
 
   for (size_t i = 0; i < size; i++) {
     const std::string &line = code[i];
-    size_t j = 0;
 
-    j = line.find(' ');
-    instr = line.substr(0, j);
+    instr = line.substr(0, line.find(' '));
 
     std::string format = __get_instr_format(instr);
 
     if (!format.empty()) {
-      const std::vector<std::string> tokens = __tokenize(format);
+      const std::vector<std::string> tokens = tokenize(format);
       binary = ((uint32_t)0);  // Restart binary code for next instruction
       __set_format_bin(tokens);
       __process_instr(tokens.back(), i);
