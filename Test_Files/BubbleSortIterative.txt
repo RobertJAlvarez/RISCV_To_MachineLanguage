@@ -13,17 +13,17 @@ sub x8 x7 x6
 addi x9 x0 0
 loop2:
 beq x9 x8 next
-slli x10 x9 2
-add x10 x10 x4
-lw x11 0(x10)
-addi x12 x10 4
+slli a0 x9 2
+add a0 a0 x4
+lw x11 0(a0)
+addi x12 a0 4
 lw x13 0(x12)
 blt x13 x11 swap
 addi x9 x9 1
 jal x0 loop2
 swap:
 sw x11 0(x12)
-sw x13 0(x10)
+sw x13 0(a0)
 addi x9 x9 1
 jal x0 loop2
 next:

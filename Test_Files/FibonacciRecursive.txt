@@ -1,10 +1,10 @@
-addi x5 x0 9			
-addi x4 x0 1
+addi x5 zero 9			
+addi x4 zero 1
 jal x1 fib
-jal x0 exit
+jal zero exit
 fib: blt x4 x5 fib_recur
 addi x31 x5 0
-jalr x0 0(x1)
+jalr zero 0(x1)
 fib_recur: addi sp sp -12
 sw x1 0(sp)
 sw x5 4(sp)
@@ -18,5 +18,5 @@ lw x7 8(sp)
 add x31 x7 x31
 lw x1 0(sp)
 addi sp sp 12
-jalr x0 0(x1)
+jalr zero 0(x1)
 exit:
